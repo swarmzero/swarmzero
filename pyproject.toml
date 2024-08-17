@@ -1,0 +1,30 @@
+[tool.poetry]
+name = "swarmzero"
+version = "0.1.0"
+description = "This library provides you with an easy way to orechestrate Hive Agents"
+authors = ["Your Name <you@example.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+fastapi = "^0.112.1"
+python-dotenv = "^1.0.1"
+llama-index-core = "^0.10.66"
+colorama = "^0.4.6"
+llama-index-llms-anthropic = "^0.1.17"
+llama-index-llms-mistralai = "^0.1.20"
+llama-index-llms-ollama = "^0.2.2"
+llama-index-llms-openai = "^0.1.29"
+llama-index-multi-modal-llms-openai = "^0.1.9"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.dev-dependencies]
+python = "^3.11"
+pytest = "8.3.2"
+pytest-asyncio = "0.23.8"
+pytest-mock = "3.14.0"
+httpx = "0.27.0"
+black = "24.8.0"

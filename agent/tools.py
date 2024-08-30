@@ -4,10 +4,10 @@ def lookup_stock_price(stock_symbol: str) -> str:
     return f"Symbol {stock_symbol} is currently trading at $100.00"
 
 
-def search_for_stock_symbol(str: str) -> str:
+def search_for_stock_symbol(symbol: str) -> str:
     """Useful for searching for a stock symbol given a free-form company name."""
     print("Searching for stock symbol")
-    return str.upper()
+    return symbol.upper()
 
 
 def add(x: int, y: int) -> int:

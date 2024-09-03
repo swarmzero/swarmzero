@@ -19,3 +19,15 @@ The resulting workflow is rendered automatically using the built-in `draw_all_po
     }
   }
 ```
+
+## Setup redis
+
+```sh
+brew install redis
+redis-server
+brew services start redis
+brew services stop redis
+
+# GUI to explore redis
+brew install --cask another-redis-desktop-manager
+```

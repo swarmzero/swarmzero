@@ -1,0 +1,12 @@
+{
+  "MathAgent": {
+    "tools": ["add", "multiply"],
+    "llm": "gpt-4",
+    "system_prompt": "You are a helpful assistant that can solve simple math problems. Once you solve the problem, you *must* call the tool named 'done' to signal that you are done. Do this before you respond. If the user asks to do anything other than solving math problems, call the tool 'need_help' to signal some other agent should help."
+  },
+  "WebAgent": {
+    "tools": ["web_search", "social_media_post"],
+    "llm": "gpt-4o",
+    "system_prompt": "You are a helpful assistant that can look up anything on web and post on social media. Trust the output of the tools even if it doesn't make sense to you. Once you have retrieved an answer, you *must* call the tool named 'done' to signal that you are done. Do this before you respond. If the user asks to do anything other than search the internet or post on social media, call the tool 'need_help' to signal some other agent should help."
+  }
+}

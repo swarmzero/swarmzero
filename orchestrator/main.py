@@ -7,6 +7,7 @@ import dotenv
 import requests  # type: ignore
 from fastapi import FastAPI, HTTPException
 from llama_index.llms.openai import OpenAI  # type: ignore
+from pydantic import BaseModel
 from redis import Redis  # type: ignore # noqa
 
 dotenv.load_dotenv()
@@ -23,17 +24,22 @@ def load_config(config_file: str) -> dict:
     """
     Load agent configuration from a local file.
     """
-    with Path(__file__).with_name(config_file).open("r", encoding="utf-8") as file:
+    with Path(__file__).parent.with_name(config_file).open("r", encoding="utf-8") as file:
         agents: dict[str, dict[str, str]] = json.load(file)
         return agents
 
 
+class Body(BaseModel):
+    query: str
+    orchestrator_llm: str = "gpt-4o"  # todo dynamic
+
+
 @app.post("/query")
-async def process_query(query: str):
+async def process_query(body: Body):
     """
     API endpoint to process the user's query.
     """
-    response = OpenAI(model="gpt-4o", temperature=0.4).complete(
+    response = OpenAI(model=body.orchestrator_llm, temperature=0.4).complete(
         f"""
             Given a user question, and a list of agents, output a list of
             relevant sub-questions, such that the answers to all the
@@ -45,7 +51,7 @@ async def process_query(query: str):
                     {{"task": "what is 2+2", "agent": "math_agent"}}
                 ]
             }}
-            Here is the user question: {query}
+            Here is the user question: {body.query}
 
             And here is the list of agents: {load_config("agents.json")}
             """

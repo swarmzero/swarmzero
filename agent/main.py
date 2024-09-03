@@ -5,7 +5,7 @@ from typing import Any, List, Optional
 
 import dotenv
 from colorama import Fore, Style  # type: ignore
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from llama_index.core.agent import FunctionCallingAgentWorker
 from llama_index.core.agent.runner.base import AgentRunner
 from llama_index.core.llms.function_calling import FunctionCallingLLM
@@ -27,7 +27,7 @@ def load_config(config_file: str, agent_name: str) -> dict:
     """
     Load agent configuration from a local file.
     """
-    with Path(__file__).with_name(config_file).open("r", encoding="utf-8") as file:
+    with Path(__file__).parent.with_name(config_file).open("r", encoding="utf-8") as file:
         config: dict[str, dict[str, str]] = json.load(file)
         if agent_name not in config:
             raise KeyError(f"Agent '{agent_name}' not found.")
@@ -199,7 +199,7 @@ async def execute_task(task: Task):
     try:
         result = agent.execute(task.query, task.chat_history)
 
-        task_info = json.loads(redis_client.hget(TASK_STATUS, task.task_id))
+        task_info = json.loads(redis_client.hget(TASK_STATUS, task.task_id))  # type: ignore
         task_info["completed_subtasks"] += 1
         task_info["results"][task.query] = result
         if task_info["completed_subtasks"] == task_info["total_subtasks"]:
@@ -212,21 +212,6 @@ async def execute_task(task: Task):
         return {"task_id": task.task_id, "status": task_info["status"]}
     except Exception as e:  # pylint: disable=broad-except
         return {"status": "error", "message": str(e)}
-
-
-@app.get("/status")
-async def status(task_id: str):
-    """
-    Endpoint to check the status of the agent.
-    """
-
-    task_data = redis_client.hget(TASK_STATUS, task_id)
-
-    if not task_data:
-        raise HTTPException(status_code=404, detail="Task not found")
-
-    task_info = json.loads(task_data)  # type: ignore
-    return task_info
 
 
 if __name__ == "__main__":

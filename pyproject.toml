@@ -18,6 +18,7 @@ llama-index-llms-openai = "^0.2.0"
 llama-index-multi-modal-llms-openai = "^0.2.0"
 redis = "^5.0.8"
 requests ="^2.32.3"
+uvicorn = "^0.30.6"
 
 [build-system]
 requires = ["poetry-core"]

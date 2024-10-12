@@ -5,7 +5,7 @@ from typing import Any, List, Optional
 
 import dotenv
 from colorama import Fore, Style  # type: ignore
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from llama_index.core.agent import FunctionCallingAgentWorker
 from llama_index.core.agent.runner.base import AgentRunner
 from llama_index.core.llms.function_calling import FunctionCallingLLM
@@ -13,6 +13,9 @@ from llama_index.core.tools import BaseTool, FunctionTool
 from llama_index.llms.openai import OpenAI  # type: ignore
 from pydantic import BaseModel
 from redis import Redis  # type: ignore # noqa
+
+from tasks import Task
+from runners import BranchRunner,DelayedRunner,LoopRunner,ParallelRunner,PriorityRunner,SequentialRunner,Runner,Runners
 
 dotenv.load_dotenv()
 
@@ -173,13 +176,6 @@ class Agent:
         return response
 
 
-class Task(BaseModel):
-    task_id: str
-    query: str
-    agent_name: str
-    chat_history: List[Any] | None = None
-
-
 @app.post("/execute_task")
 async def execute_task(task: Task):
     """
@@ -192,7 +188,7 @@ async def execute_task(task: Task):
     agent = Agent(
         name=task.agent_name,
         system_prompt=config["system_prompt"],
-        llm=OpenAI(model=config["llm"], temperature=0.4),  # TODO dynamic llm
+        llm=OpenAI(model=task.llm, temperature=0.4), 
         tools=load_tools(config["tools"]),
     )
 
@@ -212,6 +208,50 @@ async def execute_task(task: Task):
         return {"task_id": task.task_id, "status": task_info["status"]}
     except Exception as e:  # pylint: disable=broad-except
         return {"status": "error", "message": str(e)}
+
+class RunnerRequest(BaseModel):
+    runner_type: str
+    tasks: List[Task]
+    iterations: Optional[int] = None
+    delay: Optional[float] = None
+    branch_conditions: Optional[dict] = None
+
+@app.post("/create_runner")
+async def create_runner(request: RunnerRequest):
+    runner_class = get_runner_class(request.runner_type)
+    
+    if runner_class is None:
+        raise HTTPException(status_code=400, detail=f"Invalid runner type: {request.runner_type}")
+    
+    runner = create_runner_instance(runner_class, request)
+    
+    for task in request.tasks:
+        runner.add_task(task)
+    
+    result = runner.run()
+    
+    return {"status": "success", "result": result}
+
+def get_runner_class(runner_type: str) -> Optional[type]:
+    runner_classes = {
+        "sequential": SequentialRunner,
+        "parallel": ParallelRunner,
+        "loop": LoopRunner,
+        "branch": BranchRunner,
+        "delayed": DelayedRunner,
+        "priority": PriorityRunner
+    }
+    return runner_classes.get(runner_type.lower())
+
+def create_runner_instance(runner_class: type, request: RunnerRequest) -> Runner:
+    if runner_class == LoopRunner:
+        return runner_class(iterations=request.iterations or 1)
+    elif runner_class == DelayedRunner:
+        return runner_class(delay=request.delay or 1)
+    elif runner_class == BranchRunner:
+        return runner_class(branch_conditions=request.branch_conditions or {})
+    else:
+        return runner_class()
 
 
 if __name__ == "__main__":

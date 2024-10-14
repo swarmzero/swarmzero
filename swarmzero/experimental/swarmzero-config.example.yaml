@@ -1,0 +1,141 @@
+version: 1.0
+
+default: &default_settings
+  llm:
+    model: gpt-4
+    embed_model: "openai-embedding"
+    tokenizer: "gpt-4-tokenizer"
+    chunk_size: 512
+    chunk_overlap: 64
+    context_window: 4096
+    num_output: 1
+    timeout: 30
+    ollama_server_url: "http://localhost:11434"
+    enable_multi_modal: false
+  server:
+    timeout: 60
+  system_prompt: "You are a helpful assistant. Once you complete the task, you *must* call the tool named 'done' to signal that you are done."
+  port: 9500
+  max_iterations: 5
+  environment:
+    type: "enum"
+    options: ["staging", "production", "development"]
+    default: "development"
+  log_level: "INFO"
+  allow_parallel_tool_calls: false
+  api_keys:
+    OPENAI_API_KEY: ""
+    ANTHROPIC_API_KEY: ""
+    MISTRAL_API_KEY: ""
+    GEMINI_API_KEY: ""
+  sample_prompts:
+    - "What can you help me do?"
+    - "Which tools do you have access to?"
+    - "What are your capabilities?"
+  base_dir: "swarmzero-data/"
+  db:
+    db_url: "postgresql://user:password@localhost/dbname"
+    username: "user"
+    password: "password"
+    host: "localhost"
+    db_name: "dbname"
+    db_base_dir: "swarmzero-data/db/"
+  index:
+    index_base_dir: "swarmzero-data/index/"
+    retrieve: false
+    retrieval_tool:
+      type: "enum"
+      options: [ "basic", "chroma", "pinecone-serverless", "pinecone-pod" ]
+      default: "basic"
+    index_name: null
+    load_index_file: false
+  uploads:
+    file_base_dir: "swarmzero-data/uploads/user"
+    supported_extensions: [".md", ".mdx", ".txt", ".csv", ".docx", ".pdf", ".json", "text/csv", ".jpeg", ".jpg", ".png"]
+
+agent_defaults: &agent_defaults
+  <<: *default_settings
+  id: 0
+  port: 8500
+  description: "A helpful agent that uses available tools and data to answer prompts."
+  max_iterations: 10
+  sample_prompts:
+    - "What can you help me do?"
+    - "Which tools do you have access to?"
+    - "What are your capabilities?"
+
+swarm_defaults: &swarm_defaults
+  <<: *default_settings
+  id: 0
+  port: 8600
+  description: "A helpful swarm that uses available tools and data to answer prompts."
+  max_iterations: 20
+  architecture:
+    type: "enum"
+    options: ["orchestra", "choreography", "custom"]
+    default: "orchestra"
+  sample_prompts:
+    - "What can you help me do?"
+    - "Which tools do you have access to?"
+    - "What are your capabilities?"
+
+agents:
+  MathAgent:
+    <<: *agent_defaults
+    id: 101
+    description: "An agent designed to solve simple math problems using basic operations like addition and multiplication."
+    tools: [add, multiply]
+    port: 9001
+    sample_prompts:
+      - "What is 5 multiplied by 6?"
+      - "Add 25 and 37."
+    api_keys:
+      math_api: "math-api-key"
+    environment: "production"
+    index:
+      retrieve: true
+      retrieval_tool: "basic"
+      index_name: "math_index"
+      load_index_file: true
+
+  WebAgent:
+    <<: *agent_defaults
+    id: 102
+    description: "An agent that can search the web and post updates to social media platforms."
+    llm:
+      model: gpt-4o
+    tools: [web_search, social_media_post]
+    port: 9002
+    sample_prompts:
+      - "Search for the latest AI trends."
+      - "Post a status update on Twitter."
+    api_keys:
+      web_search_key: "web-search-api-key"
+      social_media_key: "social-media-api-key"
+    environment: "staging"
+    index:
+      retrieve: true
+      retrieval_tool: "chroma"
+      index_name: null
+      load_index_file: false
+
+swarms:
+  SampleSwarm:
+    <<: *swarm_defaults
+    id: 201
+    description: "A swarm that combines MathAgent and WebAgent to perform tasks sequentially, utilizing both math-solving and web-search capabilities."
+    agents: [MathAgent, WebAgent]
+    port: 9200
+    architecture: "orchestra"
+    max_iterations: 15
+    sample_prompts:
+      - "Coordinate agents to gather and analyze data."
+      - "Run agents in sequence to solve a task."
+    api_keys:
+      swarm_coordination_key: "swarm-coordination-key"
+    environment: "development"
+    index:
+      retrieve: false
+      retrieval_tool: "basic"
+      index_name: null
+      load_index_file: false

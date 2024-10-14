@@ -1,33 +1,68 @@
 [tool.poetry]
 name = "swarmzero"
-version = "0.1.0"
-description = "This library provides you with an easy way to orechestrate Hive Agents"
-authors = ["Your Name <you@example.com>"]
+version = "0.0.1"
+description = "This library provides you with an easy way to orchestrate AI Agents and Swarms on SwarmZero"
+authors = ["SwarmZero Team <info@swarmzero.ai>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.11"
-fastapi = "^0.112.2"
-python-dotenv = "^1.0.1"
-llama-index-core = "^0.11.3"
-colorama = "^0.4.6"
-llama-index-llms-anthropic = "^0.3.0"
-llama-index-llms-mistralai = "^0.2.2"
-llama-index-llms-ollama = "^0.3.0"
-llama-index-llms-openai = "^0.2.0"
-llama-index-multi-modal-llms-openai = "^0.2.0"
+python = ">=3.11,<3.13"
+fastapi = "0.115.2"
+uvicorn = "0.31.1"  # Removed duplicate
+python-dotenv = "1.0.1"
+SQLAlchemy = "2.0.29"
+aiosqlite = "0.20.0"
+toml = "0.10.2"
+python-multipart = "0.0.12"
+llama-index = "0.11.17"
+llama-index-llms-anthropic = "0.3.6"
+llama-index-llms-mistralai = "0.2.6"
+llama-index-llms-ollama = "0.3.4"
+llama-index-llms-openai = "0.2.13"
+llama-index-llms-gemini = "0.3.7"
+llama-index-multi-modal-llms-openai = "0.2.2"
+llama-index-vector-stores-chroma = "0.2.0"
+llama-index-vector-stores-pinecone = "0.2.1"
+llama-index-readers-s3 = "0.2.0"
+chromadb = "0.5.13"
+langtrace-python-sdk = "*"
+asyncpg = "^0.29.0"
+openpyxl = "3.1.5"
+docx2txt = "0.8"
+xlrd = "2.0.1"
 redis = "^5.0.8"
-requests ="^2.32.3"
-uvicorn = "^0.30.6"
+colorama = "^0.4.6"
+requests = "2.32.3"
 
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+[tool.poetry.extras]
+web3 = ["web3", "py-solc-x", "eth-account"]
 
 [tool.poetry.dev-dependencies]
-python = "3.11"
 pytest = "^8.3.2"
 pytest-asyncio = "^0.24.0"
 pytest-mock = "^3.14.0"
 httpx = "^0.27.2"
 black = "^24.8.0"
+
+[tool.poetry.group.dev.dependencies]
+pre-commit = "^4.0.1"
+black = "^24.10.0"
+isort = "^5.13.2"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+log_cli = true
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 120
+target-version = ['py311', 'py312']
+skip-string-normalization = true
+
+[tool.isort]
+profile = "black"
+skip_gitignore = true
+skip_glob = ["swarmzero/experimental/*", "tests"]

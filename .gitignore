@@ -1,10 +1,12 @@
+dist
+build
+
 __pycache__
 
 storage
 lib
 
 .env
-tests/.env
 tests/.env
 venv
 .venv

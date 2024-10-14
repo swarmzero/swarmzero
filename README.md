@@ -1,12 +1,20 @@
+[![PyPI version](https://badge.fury.io/py/swarmzero.svg)](https://badge.fury.io/py/swarmzero)
+[![CI](https://github.com/swarmzero/swarmzero/actions/workflows/test.yml/badge.svg)](https://github.com/swarmzero/swarmzero/actions/workflows/test.yml)
+[![Python Versions](https://img.shields.io/pypi/pyversions/swarmzero.svg)](https://pypi.org/project/swarmzero/)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+
+[![Twitter Follow](https://img.shields.io/twitter/follow/SwarmZeroAI?style=social)](https://twitter.com/SwarmZeroAI)
+[![](https://dcbadge.limes.pink/api/server/vnJvW4wZp9)](https://discord.gg/vnJvW4wZp9)
+
+[![Website](https://img.shields.io/badge/website-swarmzero.ai-fdb022?style=for-the-badge)](https://swarmzero.ai)
+[![Doc](https://img.shields.io/badge/docs-docs.swarmzero.ai-fdb022?style=for-the-badge)](https://docs.swarmzero.ai)
+
 ![](./assets/logo_dark.png)
 
 # SwarmZero SDK
 
 This library provides you with an easy way to create and run AI Agents and Swarms of Agents.
 
-Join our Discord community for support and discussion.
-
-[![](https://dcbadge.limes.pink/api/server/vnJvW4wZp9)](https://discord.gg/vnJvW4wZp9)
 
 ## Supported Large Language Models (LLMs)
 - OpenAI
@@ -57,30 +65,24 @@ Join our Discord community for support and discussion.
 
 ## Installation
 
-You can either directly install from pip:
+You can either directly install with pip:
 
 ```sh
-pip install git+https://github.com/swarmzero/swarmzero.git@main
+pip install swarmzero
+```
+
+Or can either directly install with poetry:
+
+```sh
+poetry add swarmzero
 ```
 
 Or add it to your _requirements.txt_ file:
 
 ```sh
-swarmzero @ git+https://github.com/swarmzero/swarmzero@main
-```
-
-### Optional Dependencies
-
-To install with the optional web3 dependencies, you can specify them as follows:
-
-```sh
-pip install git+https://github.com/swarmzero/swarmzero.git@main#egg=swarmzero[web3]
-```
-
-Or add it to your _requirements.txt_ file:
-
-```sh
-swarmzero[web3] @ git+https://github.com/swarmzero/swarmzero@main
+...
+swarmzero==x.y.z
+...
 ```
 
 ## Environment Setup
@@ -127,6 +129,8 @@ To use a configuration file with your `Agent`, follow these steps:
    ```
 
 ## Usage
+
+> _More detailed examples can be found at https://github.com/swarmzero/examples_
 
 First import the `Agent` class:
 

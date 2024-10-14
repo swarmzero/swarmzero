@@ -4,6 +4,8 @@ version = "0.0.1"
 description = "This library provides you with an easy way to orchestrate AI Agents and Swarms on SwarmZero"
 authors = ["SwarmZero Team <info@swarmzero.ai>"]
 readme = "README.md"
+repository = "https://github.com/swarmzero/swarmzero"
+homepage = "https://swarmzero.ai"
 
 [tool.poetry.dependencies]
 python = ">=3.11,<3.13"

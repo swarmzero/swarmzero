@@ -350,10 +350,6 @@ sample_prompts = [
 See [./swarmzero_config_example.toml](./swarmzero_config_example.toml) for an example configuration file.
 
 
-## Tutorial
-
-The complete tutorial can be found at [./tutorial.md](./tutorial.md).
-
 ## Contributing
 
 ### Setup

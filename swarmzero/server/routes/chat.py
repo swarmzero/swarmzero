@@ -13,6 +13,7 @@ from fastapi import (
     Request,
     UploadFile,
     status,
+    WebSocket,
 )
 from langtrace_python_sdk import inject_additional_attributes  # type: ignore   # noqa
 from llama_index.core.llms import ChatMessage, MessageRole
@@ -25,6 +26,7 @@ from swarmzero.database.database import DatabaseManager, get_db
 from swarmzero.llms.openai import OpenAIMultiModalLLM
 from swarmzero.sdk_context import SDKContext
 from swarmzero.server.routes.files import insert_files_to_index
+import asyncio
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -103,6 +105,27 @@ def setup_chat_routes(router: APIRouter, id, sdk_context: SDKContext):
             lambda: chat_manager.generate_response(db_manager, last_message, image_files), {"user_id": user_id}
         )
 
+    @router.websocket("/thoughts")
+    async def thoughts(websocket: WebSocket):
+        await websocket.accept()
+        while True:
+            try:
+                # Reload reasoning callback every 5 seconds
+                reasoning_callback = sdk_context.get_utility("reasoning_callback")
+                
+                for reasoning_steps in reasoning_callback.current_reasoning_steps:
+                    print("Captured reasoning steps:")
+                    for step in reasoning_steps:
+                        for key, value in step.items():
+                            print(f"{key}: {value}")
+                            await websocket.send_text(f"Thought: {key}: {value}")
+                        print("---")
+                
+                # Wait for 3 seconds before reloading
+                await asyncio.sleep(3)
+            except Exception as e:
+                logger.error(f"Error in thoughts websocket: {str(e)}")
+                break
     @router.get("/chat_history", response_model=List[ChatHistorySchema])
     async def get_chat_history(
         user_id: str = Query(...),

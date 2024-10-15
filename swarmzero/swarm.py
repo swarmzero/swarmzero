@@ -14,7 +14,8 @@ from swarmzero.chat import ChatManager
 from swarmzero.llms.llm import LLM
 from swarmzero.llms.utils import llm_from_config_without_agent, llm_from_wrapper
 from swarmzero.sdk_context import SDKContext
-from swarmzero.utils import tools_from_funcs
+from swarmzero.utils import tools_from_funcs, ReasoningCaptureCallback
+from llama_index.core.callbacks import CallbackManager
 
 load_dotenv()
 
@@ -91,16 +92,21 @@ class Swarm:
             if self.__agents
             else []
         )
+        llm = llm_from_wrapper(self.__llm, self.__config)
+        reasoning_callback = ReasoningCaptureCallback(sdk_context = self.sdk_context, llm=llm)
+        callback_manager = CallbackManager(handlers=[reasoning_callback])
+
 
         custom_tools = tools_from_funcs(funcs=self.functions)
         tools = custom_tools + query_engine_tools
 
         self.__swarm = ReActAgent.from_tools(
             tools=tools,
-            llm=llm_from_wrapper(self.__llm, self.__config),
+            llm=llm,
             verbose=True,
             context=self.instruction,
             max_iterations=self.max_iterations,
+            callback_manager=callback_manager,
         )
 
     def add_agent(self, agent: Agent):

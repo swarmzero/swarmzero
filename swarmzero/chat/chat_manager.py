@@ -8,6 +8,9 @@ from llama_index.core.memory import ChatMemoryBuffer
 from llama_index.core.schema import ImageDocument
 
 from swarmzero.database.database import DatabaseManager
+from swarmzero.filestore import BASE_DIR, FileStore
+
+file_store = FileStore(BASE_DIR)
 
 
 class ChatManager:
@@ -86,7 +89,7 @@ class ChatManager:
 
         if self.enable_multi_modal:
             image_documents = (
-                [ImageDocument(image_path=image_path) for image_path in image_document_paths]
+                [ImageDocument(image=file_store.get_file(image_path)) for image_path in image_document_paths]
                 if image_document_paths is not None and len(image_document_paths) > 0
                 else []
             )

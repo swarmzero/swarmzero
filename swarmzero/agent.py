@@ -10,7 +10,7 @@ from typing import Callable, List, Optional
 
 import uvicorn
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from langtrace_python_sdk import inject_additional_attributes  # type: ignore   # noqa
 from llama_index.core.agent import AgentRunner  # noqa
@@ -28,12 +28,8 @@ from swarmzero.llms.utils import llm_from_config
 from swarmzero.sdk_context import SDKContext
 from swarmzero.server.models import ToolInstallRequest
 from swarmzero.server.routes import files, setup_routes
-from swarmzero.tools.retriever.base_retrieve import (
-    IndexStore,
-    RetrieverBase,
-    index_base_dir,
-    supported_exts,
-)
+from swarmzero.server.routes.files import insert_files_to_index
+from swarmzero.tools.retriever.base_retrieve import IndexStore, RetrieverBase, index_base_dir, supported_exts
 from swarmzero.tools.retriever.chroma_retrieve import ChromaRetriever
 from swarmzero.tools.retriever.pinecone_retrieve import PineconeRetriever
 from swarmzero.utils import tools_from_funcs
@@ -205,7 +201,7 @@ class Agent:
         prompt: str,
         user_id="default_user",
         session_id="default_chat",
-        image_document_paths: Optional[List[str]] = [],
+        files: Optional[List[UploadFile]] = [],
     ):
         await self._ensure_utilities_loaded()
         db_manager = self.sdk_context.get_utility("db_manager")
@@ -213,8 +209,13 @@ class Agent:
         chat_manager = ChatManager(self.__agent, user_id=user_id, session_id=session_id)
         last_message = ChatMessage(role=MessageRole.USER, content=prompt)
 
+        stored_files = []
+        if files and len(files) > 0:
+            stored_files = await insert_files_to_index(files, self.id, self.sdk_context)
+
         response = await inject_additional_attributes(
-            lambda: chat_manager.generate_response(db_manager, last_message, image_document_paths), {"user_id": user_id}
+            lambda: chat_manager.generate_response(db_manager, last_message, stored_files),
+            {"user_id": user_id},
         )
         return response
 

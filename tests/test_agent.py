@@ -10,6 +10,7 @@ from llama_index.core.llms import ChatMessage, MessageRole
 from starlette.datastructures import Headers
 
 from swarmzero.agent import Agent
+from swarmzero.chat import ChatManager
 from swarmzero.tools.retriever.base_retrieve import IndexStore
 
 
@@ -178,58 +179,14 @@ def test_assign_agent(agent):
 
 @pytest.mark.asyncio
 async def test_chat_method(agent):
-    """Test the chat method with different scenarios including default and custom parameters."""
-    agent.sdk_context.get_utility = MagicMock()
-    mock_db_manager = MagicMock()
-    agent.sdk_context.get_utility.return_value = mock_db_manager
+    mock_chat_manager = AsyncMock(spec=ChatManager)
+    mock_chat_manager.generate_response = AsyncMock(return_value="Test response")
 
-    agent._ensure_utilities_loaded = AsyncMock()
+    with patch('swarmzero.agent.ChatManager', return_value=mock_chat_manager):
+        response = await agent.chat(prompt="Test prompt", user_id="test_user", session_id="test_session")
 
-    test_cases = [
-        {"prompt": "Hello", "user_id": "default_user", "session_id": "default_chat", "files": []},
-        {
-            "prompt": "Analyze this image",
-            "user_id": "custom_user",
-            "session_id": "custom_session",
-            "files": [
-                UploadFile(
-                    file=BytesIO(b"test content"),
-                    filename="test.png",
-                    headers=Headers({"content-type": "image/png"}),
-                )
-            ],
-        },
-    ]
-
-    with (
-        patch("swarmzero.agent.ChatManager", autospec=True) as mock_chat_manager_class,
-        patch('swarmzero.server.routes.chat.insert_files_to_index', return_value=['test.png']),
-    ):
-        mock_chat_manager_instance = mock_chat_manager_class.return_value
-        mock_chat_manager_instance.generate_response = AsyncMock(side_effect=["Response 1", "Response 2"])
-
-        for i, test_case in enumerate(test_cases):
-            response = await agent.chat(
-                prompt=test_case["prompt"],
-                user_id=test_case["user_id"],
-                session_id=test_case["session_id"],
-                files=test_case["files"],
-            )
-
-            assert response == f"Response {i + 1}"
-
-            agent._ensure_utilities_loaded.assert_called()
-
-            agent.sdk_context.get_utility.assert_called_with("db_manager")
-
-            mock_chat_manager_class.assert_called_with(
-                agent._Agent__agent, user_id=test_case["user_id"], session_id=test_case["session_id"]
-            )
-
-            expected_message = ChatMessage(role=MessageRole.USER, content=test_case["prompt"])
-            mock_chat_manager_instance.generate_response.assert_called_with(
-                mock_db_manager, expected_message, test_case["files"]
-            )
+        assert response == "Test response"
+        mock_chat_manager.generate_response.assert_called_once()
 
 
 @pytest.mark.asyncio

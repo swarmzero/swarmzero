@@ -1,10 +1,13 @@
 import os
 import signal
+from io import BytesIO
 from unittest.mock import ANY, AsyncMock, MagicMock, call, patch
 
 import pytest
+from fastapi import UploadFile
 from llama_index.core.agent.runner.base import AgentRunner
 from llama_index.core.llms import ChatMessage, MessageRole
+from starlette.datastructures import Headers
 
 from swarmzero.agent import Agent
 from swarmzero.tools.retriever.base_retrieve import IndexStore
@@ -183,16 +186,25 @@ async def test_chat_method(agent):
     agent._ensure_utilities_loaded = AsyncMock()
 
     test_cases = [
-        {"prompt": "Hello", "user_id": "default_user", "session_id": "default_chat", "image_paths": []},
+        {"prompt": "Hello", "user_id": "default_user", "session_id": "default_chat", "files": []},
         {
             "prompt": "Analyze this image",
             "user_id": "custom_user",
             "session_id": "custom_session",
-            "image_paths": ["path/to/image.jpg"],
+            "files": [
+                UploadFile(
+                    file=BytesIO(b"test content"),
+                    filename="test.png",
+                    headers=Headers({"content-type": "image/png"}),
+                )
+            ],
         },
     ]
 
-    with patch("swarmzero.agent.ChatManager", autospec=True) as mock_chat_manager_class:
+    with (
+        patch("swarmzero.agent.ChatManager", autospec=True) as mock_chat_manager_class,
+        patch('swarmzero.server.routes.chat.insert_files_to_index', return_value=['test.png']),
+    ):
         mock_chat_manager_instance = mock_chat_manager_class.return_value
         mock_chat_manager_instance.generate_response = AsyncMock(side_effect=["Response 1", "Response 2"])
 
@@ -201,7 +213,7 @@ async def test_chat_method(agent):
                 prompt=test_case["prompt"],
                 user_id=test_case["user_id"],
                 session_id=test_case["session_id"],
-                image_document_paths=test_case["image_paths"],
+                files=test_case["files"],
             )
 
             assert response == f"Response {i + 1}"
@@ -216,7 +228,7 @@ async def test_chat_method(agent):
 
             expected_message = ChatMessage(role=MessageRole.USER, content=test_case["prompt"])
             mock_chat_manager_instance.generate_response.assert_called_with(
-                mock_db_manager, expected_message, test_case["image_paths"]
+                mock_db_manager, expected_message, test_case["files"]
             )
 
 

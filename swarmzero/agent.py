@@ -208,7 +208,10 @@ class Agent:
 
         chat_manager = ChatManager(self.__agent, user_id=user_id, session_id=session_id)
         last_message = ChatMessage(role=MessageRole.USER, content=prompt)
-        stored_files = await insert_files_to_index(files, id, self.sdk_context)
+
+        stored_files = []
+        if files and len(files) > 0:
+            stored_files = await insert_files_to_index(files, self.id, self.sdk_context)
 
         response = await inject_additional_attributes(
             lambda: chat_manager.generate_response(db_manager, last_message, stored_files),

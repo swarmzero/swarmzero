@@ -4,6 +4,7 @@ import uuid
 from typing import Any, Callable, Dict, List, Optional
 
 from dotenv import load_dotenv
+from fastapi import UploadFile
 from langtrace_python_sdk import inject_additional_attributes
 from llama_index.core.agent import AgentRunner, ReActAgent
 from llama_index.core.llms import ChatMessage, MessageRole
@@ -127,14 +128,17 @@ class Swarm:
         prompt: str,
         user_id="default_user",
         session_id="default_chat",
-        files: Optional[List[str]] = [],
+        files: Optional[List[UploadFile]] = [],
     ):
         await self._ensure_utilities_loaded()
         db_manager = self.sdk_context.get_utility("db_manager")
 
         chat_manager = ChatManager(self.__swarm, user_id=user_id, session_id=session_id)
         last_message = ChatMessage(role=MessageRole.USER, content=prompt)
-        stored_files = await insert_files_to_index(files, id, self.sdk_context)
+
+        stored_files = []
+        if files and len(files) > 0:
+            stored_files = await insert_files_to_index(files, self.id, self.sdk_context)
 
         response = await inject_additional_attributes(
             lambda: chat_manager.generate_response(db_manager, last_message, stored_files), {"user_id": user_id}

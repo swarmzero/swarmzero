@@ -63,6 +63,7 @@ class Swarm:
 
         if agents:
             for agent in agents:
+                self.sdk_context.add_resource(agent, resource_type="agent")
                 self.__agents[agent.name] = {
                     "id": agent.id,
                     "agent": agent,

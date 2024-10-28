@@ -113,9 +113,9 @@ async def test_generate_response_with_openai_multimodal(multi_modal_agent, db_ma
     with patch("llama_index.core.settings._Settings.llm", new=MagicMock(spec=OpenAIMultiModal)):
         chat_manager = ChatManager(multi_modal_agent, user_id="123", session_id="abc", enable_multi_modal=True)
         user_message = ChatMessage(role=MessageRole.USER, content="Hello!")
-        image_document_paths = ["image1.png", "image2.png"]
+        files = ["image1.png", "image2.png"]
 
-        response = await chat_manager.generate_response(db_manager, user_message, image_document_paths)
+        response = await chat_manager.generate_response(db_manager, user_message, files)
 
         assert response == "multimodal response"
 

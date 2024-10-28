@@ -1,19 +1,8 @@
 import logging
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import List
 
-from fastapi import (
-    APIRouter,
-    Depends,
-    File,
-    Form,
-    HTTPException,
-    Query,
-    Request,
-    UploadFile,
-    status,
-)
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile, status
 from langtrace_python_sdk import inject_additional_attributes  # type: ignore   # noqa
 from llama_index.core.llms import ChatMessage, MessageRole
 from pydantic import ValidationError
@@ -28,9 +17,6 @@ from swarmzero.server.routes.files import insert_files_to_index
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-
-ALLOWED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff"}
 
 
 def get_llm_instance(id, sdk_context: SDKContext):
@@ -67,9 +53,6 @@ def setup_chat_routes(router: APIRouter, id, sdk_context: SDKContext):
             )
         return last_message, [ChatMessage(role=m.role, content=m.content) for m in chat_data.messages]
 
-    def is_valid_image(file_path: str) -> bool:
-        return Path(file_path).suffix.lower() in ALLOWED_IMAGE_EXTENSIONS
-
     @router.post("/chat")
     async def chat(
         request: Request,
@@ -87,7 +70,6 @@ def setup_chat_routes(router: APIRouter, id, sdk_context: SDKContext):
                 detail=f"Chat data is malformed: {e.json()}",
             )
 
-        stored_files = await insert_files_to_index(files, id, sdk_context)
         llm_instance, enable_multi_modal = get_llm_instance(id, sdk_context)
 
         chat_manager = ChatManager(
@@ -97,10 +79,12 @@ def setup_chat_routes(router: APIRouter, id, sdk_context: SDKContext):
 
         last_message, _ = await validate_chat_data(chat_data_parsed)
 
-        image_files = [file for file in stored_files if is_valid_image(file)]
+        stored_files = []
+        if files and len(files) > 0:
+            stored_files = await insert_files_to_index(files, id, sdk_context)
 
         return await inject_additional_attributes(
-            lambda: chat_manager.generate_response(db_manager, last_message, image_files), {"user_id": user_id}
+            lambda: chat_manager.generate_response(db_manager, last_message, stored_files), {"user_id": user_id}
         )
 
     @router.get("/chat_history", response_model=List[ChatHistorySchema])

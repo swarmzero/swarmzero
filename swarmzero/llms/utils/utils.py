@@ -20,7 +20,7 @@ from swarmzero.llms.claude import ClaudeLLM
 from swarmzero.llms.llm import LLM
 from swarmzero.llms.mistral import MistralLLM
 from swarmzero.llms.ollama import OllamaLLM
-from swarmzero.llms.openai import OpenAILLM
+from swarmzero.llms.openai import OpenAILLM, OpenAIMultiModalLLM
 
 load_dotenv()
 
@@ -104,7 +104,12 @@ def llm_from_config(config: Config):
 
 def llm_from_config_without_agent(config: Config):
     model = config.get("model")
+    enable_multi_modal = config.get("enable_multi_modal")
+
     if "gpt" in model:
+        if model.startswith("gpt-4") and enable_multi_modal is True:
+            logger.info("OpenAIMultiModalLLM selected")
+            return OpenAIMultiModalLLM(llm=llm_from_config(config))
         logger.info("OpenAILLM selected")
         return OpenAILLM(llm=llm_from_config(config))
     elif "claude" in model:

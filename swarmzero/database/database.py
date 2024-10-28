@@ -74,6 +74,7 @@ async def setup_chats_table(db: AsyncSession):
         "role": "String",
         "timestamp": "String",
         "agent_id": "String",
+        "swarm_id": "String",
     }
 
     await db_manager.create_table("chats", columns)

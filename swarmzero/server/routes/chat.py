@@ -2,7 +2,17 @@ import logging
 from datetime import datetime, timezone
 from typing import List
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    Request,
+    UploadFile,
+    status,
+)
 from langtrace_python_sdk import inject_additional_attributes  # type: ignore   # noqa
 from llama_index.core.llms import ChatMessage, MessageRole
 from pydantic import ValidationError
@@ -81,7 +91,7 @@ def setup_chat_routes(router: APIRouter, id, sdk_context: SDKContext):
 
         stored_files = []
         if files and len(files) > 0:
-            stored_files = await insert_files_to_index(files, id, sdk_context)
+            stored_files = await insert_files_to_index(files, id, sdk_context, user_id, session_id)
 
         return await inject_additional_attributes(
             lambda: chat_manager.generate_response(db_manager, last_message, stored_files), {"user_id": user_id}

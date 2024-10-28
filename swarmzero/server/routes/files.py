@@ -1,9 +1,10 @@
 import logging
 import os
-from typing import List
+from typing import List, Optional
 
 from dotenv import load_dotenv
 from fastapi import APIRouter, File, HTTPException, UploadFile
+from sqlalchemy.orm.collections import collection
 
 from swarmzero.filestore import BASE_DIR, FileStore
 from swarmzero.sdk_context import SDKContext
@@ -36,7 +37,13 @@ index_store = IndexStore.get_instance()
 USE_S3 = os.getenv("USE_S3", "false").lower() == "true"
 
 
-async def insert_files_to_index(files: List[UploadFile], id: str, sdk_context: SDKContext):
+async def insert_files_to_index(
+    files: List[UploadFile],
+    id: str,
+    sdk_context: SDKContext,
+    user_id: Optional[str] = "",
+    session_id: Optional[str] = "",
+):
     saved_files = []
     for file in files:
         if not file.content_type:
@@ -60,7 +67,10 @@ async def insert_files_to_index(files: List[UploadFile], id: str, sdk_context: S
 
             if USE_S3:
                 retriever = PineconeRetriever()
-                index, file_names = retriever.create_serverless_index([file_path])
+                collection_name = user_id + session_id if user_id and session_id else "swarmzero-pinecone"
+                index, file_names = retriever.create_serverless_index(
+                    file_path=[file_path], collection_name=collection_name
+                )
                 index_store.add_index(retriever.name, index, file_names)
                 logger.info("Inserting data to new basic index")
                 logger.info(f"Index: {index_store.list_indexes()}")

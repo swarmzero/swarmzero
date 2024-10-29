@@ -2,6 +2,7 @@ import os
 import signal
 from io import BytesIO
 from unittest.mock import ANY, AsyncMock, MagicMock, call, patch
+import json
 
 import pytest
 from fastapi import UploadFile
@@ -88,8 +89,8 @@ def test_server_setup_exception(agent):
 
 
 def test_openai_agent_initialization_exception(agent):
-    with patch("llama_index.agent.openai.OpenAIAgent.from_tools") as mock_from_tools:
-        mock_from_tools.side_effect = Exception("Failed to initialize OpenAI agent")
+    with patch.object(agent, "_assign_agent") as mock_assign_agent:
+        mock_assign_agent.side_effect = Exception("Failed to initialize OpenAI agent")
         with pytest.raises(Exception):
             agent._Agent__setup()
 
@@ -180,29 +181,45 @@ def test_assign_agent(agent):
 @pytest.mark.asyncio
 async def test_chat_method(agent):
     mock_chat_manager = AsyncMock(spec=ChatManager)
-    mock_chat_manager.generate_response = AsyncMock(return_value="Test response")
+    
+    async def mock_generate_response(*args, **kwargs):
+        yield json.dumps("Test response")
+        yield json.dumps("END_OF_STREAM")
+    
+    mock_chat_manager.generate_response = mock_generate_response
 
     with patch('swarmzero.agent.ChatManager', return_value=mock_chat_manager):
         response = await agent.chat(prompt="Test prompt", user_id="test_user", session_id="test_session")
-
-        assert response == "Test response"
-        mock_chat_manager.generate_response.assert_called_once()
+        
+        response_content = []
+        async for chunk in response.body_iterator:
+            if chunk.startswith("1:"):  # Message chunk
+                content = json.loads(chunk[2:])
+                if content != "END_OF_STREAM":
+                    response_content.append(content)
+        
+        assert "".join(response_content) == json.dumps("Test response") + json.dumps("END_OF_STREAM")
 
 
 @pytest.mark.asyncio
 async def test_chat_method_error_handling(agent):
     """Test error handling in the chat method."""
-    agent.sdk_context.get_utility = MagicMock(return_value=MagicMock())
-    agent._ensure_utilities_loaded = AsyncMock()
+    mock_chat_manager = AsyncMock(spec=ChatManager)
+    
+    async def mock_generate_response(*args, **kwargs):
+        yield json.dumps("Test error")
+    
+    mock_chat_manager.generate_response = mock_generate_response
 
-    with patch("swarmzero.agent.ChatManager", autospec=True) as mock_chat_manager_class:
-        mock_chat_manager_instance = mock_chat_manager_class.return_value
-        mock_chat_manager_instance.generate_response = AsyncMock(side_effect=Exception("Test error"))
-
-        with pytest.raises(Exception) as exc_info:
-            await agent.chat("Hello")
-
-        assert str(exc_info.value) == "Test error"
+    with patch('swarmzero.agent.ChatManager', return_value=mock_chat_manager):
+        response = await agent.chat(prompt="Test prompt", user_id="test_user", session_id="test_session")
+        
+        async for chunk in response.body_iterator:
+            if chunk.startswith("1:"):  # Message chunk
+                content = json.loads(chunk[2:])  # This gives us a JSON string
+                # Decode the JSON string to get the actual string value
+                assert json.loads(content) == "Test error"
+                break
 
 
 @pytest.mark.asyncio

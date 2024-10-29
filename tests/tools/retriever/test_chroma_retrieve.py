@@ -1,16 +1,22 @@
 from unittest import mock
-
+from unittest.mock import MagicMock
 import pytest
 
 from swarmzero.tools.retriever.chroma_retrieve import ChromaRetriever
-
+from swarmzero.sdk_context import SDKContext
 
 @pytest.fixture
 def chroma_retriever():
     return ChromaRetriever()
 
+@pytest.fixture
+def sdk_context():
+    mock_sdk_context = MagicMock(spec=SDKContext)
+    mock_sdk_context.get_utility.return_value = MagicMock()
+    return mock_sdk_context
 
-def test_create_index(chroma_retriever):
+def test_create_index(chroma_retriever, sdk_context):
+    chroma_retriever.sdk_context = sdk_context  # Inject the mock sdk_context
     with (
         mock.patch('swarmzero.tools.retriever.chroma_retrieve.chromadb.PersistentClient') as MockClient,
         mock.patch('swarmzero.tools.retriever.chroma_retrieve.ChromaVectorStore') as MockVectorStore,
@@ -35,7 +41,7 @@ def test_create_index(chroma_retriever):
         MockVectorStore.assert_called_once_with(chroma_collection=mock_collection)
         MockStorageContext.from_defaults.assert_called_once_with(vector_store=mock_vector_store_instance)
         MockVectorStoreIndex.from_documents.assert_called_once_with(
-            ['doc1', 'doc2'], storage_context=mock_storage_context_instance
+            ['doc1', 'doc2'], storage_context=mock_storage_context_instance, callback_manager=sdk_context.get_utility("callback_manager")
         )
         assert index == mock_index_instance
         assert file_names == ['file1.txt', 'file2.txt']
@@ -51,7 +57,8 @@ def test_delete_collection(chroma_retriever):
         mock_client_instance.delete_collection.assert_called_once_with('test_collection')
 
 
-def test_create_index_with_single_document(chroma_retriever):
+def test_create_index_with_single_document(chroma_retriever, sdk_context):
+    chroma_retriever.sdk_context = sdk_context  # Inject the mock sdk_context
     with (
         mock.patch('swarmzero.tools.retriever.chroma_retrieve.chromadb.PersistentClient') as MockClient,
         mock.patch('swarmzero.tools.retriever.chroma_retrieve.ChromaVectorStore') as MockVectorStore,
@@ -66,7 +73,7 @@ def test_create_index_with_single_document(chroma_retriever):
         index, file_names = chroma_retriever.create_index(file_path='single_doc_path')
 
         MockVectorStoreIndex.from_documents.assert_called_once_with(
-            ['single_doc'], storage_context=mock_storage_context_instance
+            ['single_doc'], storage_context=mock_storage_context_instance, callback_manager=sdk_context.get_utility("callback_manager")
         )
         assert index == mock_index_instance
         assert file_names == ['single_file.txt']

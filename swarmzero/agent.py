@@ -7,10 +7,11 @@ import subprocess
 import sys
 import uuid
 from typing import Callable, List, Optional
-
+import json
 import uvicorn
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, UploadFile
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from langtrace_python_sdk import inject_additional_attributes  # type: ignore   # noqa
 from llama_index.core.agent import AgentRunner  # noqa
@@ -102,6 +103,7 @@ class Agent:
         [self.sdk_context.add_resource(func, resource_type="tool") for func in self.functions]
 
         self.__utilities_loaded = False
+        self.sdk_context.load_callback_manager()
 
     async def _ensure_utilities_loaded(self):
         """Load utilities if they are not already loaded."""
@@ -202,22 +204,29 @@ class Agent:
         user_id="default_user",
         session_id="default_chat",
         files: Optional[List[UploadFile]] = [],
-    ):
+        stream_mode: bool = False,
+    ) -> StreamingResponse:
         await self._ensure_utilities_loaded()
         db_manager = self.sdk_context.get_utility("db_manager")
 
         chat_manager = ChatManager(self.__agent, user_id=user_id, session_id=session_id)
         last_message = ChatMessage(role=MessageRole.USER, content=prompt)
-
+        event_handler = self.sdk_context.get_utility("reasoning_callback")
         stored_files = []
         if files and len(files) > 0:
             stored_files = await insert_files_to_index(files, self.id, self.sdk_context)
 
-        response = await inject_additional_attributes(
-            lambda: chat_manager.generate_response(db_manager, last_message, stored_files),
-            {"user_id": user_id},
+        async def stream_response():
+            async for chunk in chat_manager.generate_response(db_manager, last_message, stored_files, event_handler, stream_mode):
+                if isinstance(json.loads(chunk), dict):
+                    yield f"0:{json.dumps(chunk)}\n"
+                else:
+                    yield f"1:{json.dumps(chunk)}\n"
+
+        return StreamingResponse(
+            inject_additional_attributes(stream_response, {"user_id": user_id}), ##Check traceability in langtrace maybe broken?
+            media_type="text/event-stream"
         )
-        return response
 
     async def chat_history(self, user_id="default_user", session_id="default_chat") -> dict[str, list]:
         await self._ensure_utilities_loaded()
@@ -272,12 +281,12 @@ class Agent:
     def add_batch_indexes(self):
 
         if "basic" in self.retrieval_tool:
-            retriever = RetrieverBase()
+            retriever = RetrieverBase(sdk_context=self.sdk_context)
             index, file_names = retriever.create_basic_index()
             self.index_store.add_index(retriever.name, index, file_names)
 
         if "chroma" in self.retrieval_tool:
-            chroma_retriever = ChromaRetriever()
+            chroma_retriever = ChromaRetriever(sdk_context=self.sdk_context)
             if self.index_name is not None:
                 index, file_names = chroma_retriever.create_index(collection_name=self.index_name)
             else:
@@ -285,7 +294,7 @@ class Agent:
             self.index_store.add_index(chroma_retriever.name, index, file_names)
 
         if "pinecone-serverless" in self.retrieval_tool:
-            pinecone_retriever = PineconeRetriever()
+            pinecone_retriever = PineconeRetriever(sdk_context=self.sdk_context)
             if self.index_name is not None:
                 index, file_names = pinecone_retriever.create_serverless_index(collection_name=self.index_name)
             else:
@@ -293,7 +302,7 @@ class Agent:
             self.index_store.add_index(pinecone_retriever.name, index, file_names)
 
         if "pinecone-pod" in self.retrieval_tool:
-            pinecone_retriever = PineconeRetriever()
+            pinecone_retriever = PineconeRetriever(sdk_context=self.sdk_context)
             if self.index_name is not None:
                 index, file_names = pinecone_retriever.create_pod_index(collection_name=self.index_name)
             else:
@@ -362,10 +371,10 @@ class Agent:
             )
             if agent_class == OpenAIMultiModalLLM:
                 self.__agent = agent_class(
-                    llm, tools, self.instruction, tool_retriever, max_iterations=self.max_iterations
+                    llm, tools, self.instruction, tool_retriever, max_iterations=self.max_iterations, sdk_context=self.sdk_context
                 ).agent
             else:
-                self.__agent = agent_class(llm, tools, self.instruction, tool_retriever).agent
+                self.__agent = agent_class(llm, tools, self.instruction, tool_retriever, sdk_context=self.sdk_context).agent
 
         else:
             model = self.__config.get("model")
@@ -397,10 +406,10 @@ class Agent:
             )
             if agent_class == OpenAIMultiModalLLM:
                 self.__agent = agent_class(
-                    llm, tools, self.instruction, tool_retriever, max_iterations=self.max_iterations
+                    llm, tools, self.instruction, tool_retriever, max_iterations=self.max_iterations, sdk_context=self.sdk_context
                 ).agent
             else:
-                self.__agent = agent_class(llm, tools, self.instruction, tool_retriever).agent
+                self.__agent = agent_class(llm, tools, self.instruction, tool_retriever, sdk_context=self.sdk_context).agent
 
     def add_tool(self, function_tool):
         self.functions.append(function_tool)

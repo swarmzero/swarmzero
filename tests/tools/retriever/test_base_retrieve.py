@@ -1,5 +1,5 @@
 from unittest.mock import MagicMock, patch
-
+from swarmzero.sdk_context import SDKContext
 import pytest
 
 from swarmzero.tools.retriever.base_retrieve import IndexStore, RetrieverBase
@@ -9,6 +9,11 @@ from swarmzero.tools.retriever.base_retrieve import IndexStore, RetrieverBase
 def retriever_base():
     return RetrieverBase()
 
+@pytest.fixture
+def sdk_context():
+    mock_sdk_context = MagicMock(spec=SDKContext)
+    mock_sdk_context.get_utility.return_value = MagicMock()
+    return mock_sdk_context
 
 @pytest.fixture
 def index_store():
@@ -16,7 +21,7 @@ def index_store():
     return IndexStore.get_instance()
 
 
-def test_retriever_base_initialization(retriever_base):
+def test_retriever_base_initialization(retriever_base, sdk_context):
     assert retriever_base.name == "BaseRetriever"
     assert retriever_base.description == "This tool creates a base retriever index"
     assert retriever_base.required_exts == [".md", ".mdx", ".txt", ".csv", ".docx", ".pdf"]
@@ -25,12 +30,13 @@ def test_retriever_base_initialization(retriever_base):
 
 @patch('swarmzero.tools.retriever.base_retrieve.RetrieverBase._load_documents')
 @patch('llama_index.core.VectorStoreIndex.from_documents', return_value="index")
-def test_create_basic_index(mock_from_documents, mock_load_documents, retriever_base):
+def test_create_basic_index(mock_from_documents, mock_load_documents, retriever_base,sdk_context):
+    retriever_base.sdk_context = sdk_context 
     mock_documents = [MagicMock(doc_id="doc1"), MagicMock(doc_id="doc2")]
     mock_load_documents.return_value = (mock_documents, ["doc1", "doc2"])
     index, file_names = retriever_base.create_basic_index()
     mock_load_documents.assert_called_once()
-    mock_from_documents.assert_called_once_with(mock_documents)
+    mock_from_documents.assert_called_once_with(mock_documents,callback_manager=sdk_context.get_utility("callback_manager"))
     assert index == "index"
     assert file_names == ["doc1", "doc2"]
 

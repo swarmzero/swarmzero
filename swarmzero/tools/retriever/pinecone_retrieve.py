@@ -58,7 +58,7 @@ class PineconeRetriever(RetrieverBase):
 
         vector_store = PineconeVectorStore(pinecone_index=pinecone_index)
         storage_context = StorageContext.from_defaults(vector_store=vector_store)
-        index = VectorStoreIndex.from_documents(documents, storage_context=storage_context)
+        index = VectorStoreIndex.from_documents(documents, storage_context=storage_context, callback_manager=self.sdk_context.get_utility("callback_manager"))
         return index, file_names
 
     def create_pod_index(
@@ -88,7 +88,7 @@ class PineconeRetriever(RetrieverBase):
 
         vector_store = PineconeVectorStore(pinecone_index=pinecone_index)
         storage_context = StorageContext.from_defaults(vector_store=vector_store)
-        index = VectorStoreIndex.from_documents(documents, storage_context=storage_context)
+        index = VectorStoreIndex.from_documents(documents, storage_context=storage_context, callback_manager=self.sdk_context.get_utility("callback_manager"))
         return index, file_names
 
     def delete_index(self, index_name):

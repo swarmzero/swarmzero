@@ -13,7 +13,11 @@ from swarmzero.database.database import (
     get_db,
     initialize_db,
     setup_chats_table,
+    setup_events_table
 )
+
+from swarmzero.utils import EventCallbackHandler
+from llama_index.core.callbacks import CallbackManager
 
 
 class SDKContext:
@@ -480,6 +484,14 @@ class SDKContext:
             await initialize_db()
             async for db in get_db():
                 await setup_chats_table(db)
+                await setup_events_table(db)
                 db_manager = DatabaseManager(db)
                 self.add_utility(db_manager, utility_type="DatabaseManager", name="db_manager")
                 break  # Exit after getting the first session
+    
+    def load_callback_manager(self):
+        if self.get_utility("callback_manager") is None:
+            reasoning_callback = EventCallbackHandler()
+            callback_manager = CallbackManager(handlers=[reasoning_callback])
+            self.add_utility(reasoning_callback, 'EventCallbackHandler', 'reasoning_callback')
+            self.add_utility(callback_manager,'CallbackManager', 'callback_manager')

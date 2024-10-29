@@ -13,7 +13,7 @@ from swarmzero.config import Config
 from swarmzero.llms.llm import LLM
 from swarmzero.sdk_context import SDKContext
 from swarmzero.swarm import Swarm
-
+import json
 
 @pytest.fixture
 def mock_sdk_context():
@@ -123,13 +123,25 @@ async def test_remove_nonexistent_agent(basic_swarm):
 @pytest.mark.asyncio
 async def test_chat(basic_swarm, mock_sdk_context):
     mock_chat_manager = AsyncMock(spec=ChatManager)
-    mock_chat_manager.generate_response = AsyncMock(return_value="Test response")
+    
+    async def mock_generate_response(*args, **kwargs):
+        yield "Test response"
+    
+    mock_chat_manager.generate_response = mock_generate_response
 
     with patch('swarmzero.swarm.ChatManager', return_value=mock_chat_manager):
         response = await basic_swarm.chat(prompt="Test prompt", user_id="test_user", session_id="test_session")
+        
+        # Get the response content from the StreamingResponse
+        response_content = ""
+        async for chunk in response.body_iterator:
+            if isinstance(chunk, bytes):
+                chunk = chunk.decode()
+            if chunk.startswith('1:'):  # Regular message chunk
+                content = json.loads(chunk[2:])
+                response_content += content
 
-        assert response == "Test response"
-        mock_chat_manager.generate_response.assert_called_once()
+        assert response_content == "Test response"
 
 
 @pytest.mark.asyncio

@@ -1,10 +1,12 @@
 import os
 import string
 import uuid
+import json
 from typing import Any, Callable, Dict, List, Optional
 
 from dotenv import load_dotenv
 from fastapi import UploadFile
+from fastapi.responses import StreamingResponse
 from langtrace_python_sdk import inject_additional_attributes
 from llama_index.core.agent import AgentRunner, ReActAgent
 from llama_index.core.llms import ChatMessage, MessageRole
@@ -56,9 +58,10 @@ class Swarm:
         self.functions = functions
         self.sdk_context = sdk_context if sdk_context is not None else SDKContext(config_path=config_path)
         self.__config = self.sdk_context.get_config(self.name)
-        self.__llm = llm if llm is not None else llm_from_config_without_agent(self.__config)
+        self.__llm = llm if llm is not None else llm_from_config_without_agent(self.__config, self.sdk_context)
         self.max_iterations = max_iterations
         self.__utilities_loaded = False
+        self.sdk_context.load_callback_manager()
 
         if agents is None:
             agents = self.sdk_context.generate_agents_from_config()
@@ -97,6 +100,7 @@ class Swarm:
 
         custom_tools = tools_from_funcs(funcs=self.functions)
         tools = custom_tools + query_engine_tools
+        
 
         self.__swarm = ReActAgent.from_tools(
             tools=tools,
@@ -104,6 +108,7 @@ class Swarm:
             verbose=True,
             context=self.instruction,
             max_iterations=self.max_iterations,
+            callback_manager = self.sdk_context.get_utility("callback_manager")
         )
 
     def add_agent(self, agent: Agent):
@@ -130,21 +135,28 @@ class Swarm:
         user_id="default_user",
         session_id="default_chat",
         files: Optional[List[UploadFile]] = [],
-    ):
+    ) -> StreamingResponse:
         await self._ensure_utilities_loaded()
         db_manager = self.sdk_context.get_utility("db_manager")
 
         chat_manager = ChatManager(self.__swarm, user_id=user_id, session_id=session_id)
         last_message = ChatMessage(role=MessageRole.USER, content=prompt)
-
+        event_handler = self.sdk_context.get_utility("reasoning_callback")
         stored_files = []
         if files and len(files) > 0:
             stored_files = await insert_files_to_index(files, self.id, self.sdk_context)
 
-        response = await inject_additional_attributes(
-            lambda: chat_manager.generate_response(db_manager, last_message, stored_files), {"user_id": user_id}
+        async def stream_response():
+            async for chunk in chat_manager.generate_response(db_manager, last_message, stored_files, event_handler):
+                if isinstance(chunk, dict):
+                    yield f"0:{json.dumps(chunk)}\n"
+                else:
+                    yield f"1:{json.dumps(chunk)}\n"
+
+        return StreamingResponse(
+            inject_additional_attributes(stream_response, {"user_id": user_id}), ##Check traceability in langtrace maybe broken?
+            media_type="text/event-stream"
         )
-        return response
 
     async def chat_history(self, user_id="default_user", session_id="default_chat") -> dict[str, list]:
         await self._ensure_utilities_loaded()

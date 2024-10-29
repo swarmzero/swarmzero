@@ -67,40 +67,6 @@ def setup_chat_routes(router: APIRouter, id, sdk_context: SDKContext):
             )
         return last_message, [ChatMessage(role=m.role, content=m.content) for m in chat_data.messages]
 
-    # @router.post("/chat")
-    # async def chat(
-    #     request: Request,
-    #     user_id: str = Form(...),
-    #     session_id: str = Form(...),
-    #     chat_data: str = Form(...),
-    #     files: List[UploadFile] = File([]),
-    #     db: AsyncSession = Depends(get_db),
-    # ):
-    #     try:
-    #         chat_data_parsed = ChatData.model_validate_json(chat_data)
-    #     except ValidationError as e:
-    #         raise HTTPException(
-    #             status_code=status.HTTP_400_BAD_REQUEST,
-    #             detail=f"Chat data is malformed: {e.json()}",
-    #         )
-
-    #     llm_instance, enable_multi_modal = get_llm_instance(id, sdk_context)
-
-    #     chat_manager = ChatManager(
-    #         llm_instance, user_id=user_id, session_id=session_id, enable_multi_modal=enable_multi_modal
-    #     )
-    #     db_manager = DatabaseManager(db)
-
-    #     last_message, _ = await validate_chat_data(chat_data_parsed)
-
-    #     stored_files = []
-    #     if files and len(files) > 0:
-    #         stored_files = await insert_files_to_index(files, id, sdk_context, user_id, session_id)
-
-    #     return await inject_additional_attributes(
-    #         lambda: chat_manager.generate_response(db_manager, last_message, stored_files), {"user_id": user_id}
-    #     )
-
     @router.post("/chat")
     async def chat(
         request: Request,

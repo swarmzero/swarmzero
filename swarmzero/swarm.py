@@ -135,6 +135,7 @@ class Swarm:
         user_id="default_user",
         session_id="default_chat",
         files: Optional[List[UploadFile]] = [],
+        stream_mode: bool = False,
     ) -> StreamingResponse:
         await self._ensure_utilities_loaded()
         db_manager = self.sdk_context.get_utility("db_manager")
@@ -147,7 +148,7 @@ class Swarm:
             stored_files = await insert_files_to_index(files, self.id, self.sdk_context)
 
         async def stream_response():
-            async for chunk in chat_manager.generate_response(db_manager, last_message, stored_files, event_handler):
+            async for chunk in chat_manager.generate_response(db_manager, last_message, stored_files, event_handler, stream_mode):
                 if isinstance(chunk, dict):
                     yield f"0:{json.dumps(chunk)}\n"
                 else:

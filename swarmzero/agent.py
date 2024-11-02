@@ -1,5 +1,6 @@
 import asyncio
 import importlib.util
+import json
 import logging
 import os
 import signal
@@ -7,12 +8,12 @@ import subprocess
 import sys
 import uuid
 from typing import Callable, List, Optional
-import json
+
 import uvicorn
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, UploadFile
-from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from langtrace_python_sdk import inject_additional_attributes  # type: ignore   # noqa
 from llama_index.core.agent import AgentRunner  # noqa
 from llama_index.core.llms import ChatMessage, MessageRole
@@ -30,7 +31,12 @@ from swarmzero.sdk_context import SDKContext
 from swarmzero.server.models import ToolInstallRequest
 from swarmzero.server.routes import files, setup_routes
 from swarmzero.server.routes.files import insert_files_to_index
-from swarmzero.tools.retriever.base_retrieve import IndexStore, RetrieverBase, index_base_dir, supported_exts
+from swarmzero.tools.retriever.base_retrieve import (
+    IndexStore,
+    RetrieverBase,
+    index_base_dir,
+    supported_exts,
+)
 from swarmzero.tools.retriever.chroma_retrieve import ChromaRetriever
 from swarmzero.tools.retriever.pinecone_retrieve import PineconeRetriever
 from swarmzero.utils import tools_from_funcs
@@ -218,7 +224,9 @@ class Agent:
 
         response = ""
         async for chunk in inject_additional_attributes(
-            lambda: chat_manager.generate_response(db_manager, last_message, stored_files, event_handler, stream_mode=False),
+            lambda: chat_manager.generate_response(
+                db_manager, last_message, stored_files, event_handler, stream_mode=False
+            ),
             {"user_id": user_id},
         ):
             try:
@@ -232,7 +240,7 @@ class Agent:
                 logging.error(f"Error processing chunk: {e}")
 
         return response
-    
+
     async def chat_stream(
         self,
         prompt: str,
@@ -251,7 +259,9 @@ class Agent:
             stored_files = await insert_files_to_index(files, self.id, self.sdk_context)
 
         async def stream_response():
-            async for chunk in chat_manager.generate_response(db_manager, last_message, stored_files, event_handler, stream_mode=True):
+            async for chunk in chat_manager.generate_response(
+                db_manager, last_message, stored_files, event_handler, stream_mode=True
+            ):
                 try:
                     if isinstance(chunk, dict):
                         yield f"0:{json.dumps(chunk)}\n"
@@ -263,8 +273,10 @@ class Agent:
                     logging.error(f"Error processing chunk: {e}")
 
         return StreamingResponse(
-            inject_additional_attributes(stream_response, {"user_id": user_id}), ##Check traceability in langtrace maybe broken?
-            media_type="text/event-stream"
+            inject_additional_attributes(
+                stream_response, {"user_id": user_id}
+            ),  ##Check traceability in langtrace maybe broken?
+            media_type="text/event-stream",
         )
 
     async def chat_history(self, user_id="default_user", session_id="default_chat") -> dict[str, list]:
@@ -410,10 +422,17 @@ class Agent:
             )
             if agent_class == OpenAIMultiModalLLM:
                 self.__agent = agent_class(
-                    llm, tools, self.instruction, tool_retriever, max_iterations=self.max_iterations, sdk_context=self.sdk_context
+                    llm,
+                    tools,
+                    self.instruction,
+                    tool_retriever,
+                    max_iterations=self.max_iterations,
+                    sdk_context=self.sdk_context,
                 ).agent
             else:
-                self.__agent = agent_class(llm, tools, self.instruction, tool_retriever, sdk_context=self.sdk_context).agent
+                self.__agent = agent_class(
+                    llm, tools, self.instruction, tool_retriever, sdk_context=self.sdk_context
+                ).agent
 
         else:
             model = self.__config.get("model")
@@ -445,10 +464,17 @@ class Agent:
             )
             if agent_class == OpenAIMultiModalLLM:
                 self.__agent = agent_class(
-                    llm, tools, self.instruction, tool_retriever, max_iterations=self.max_iterations, sdk_context=self.sdk_context
+                    llm,
+                    tools,
+                    self.instruction,
+                    tool_retriever,
+                    max_iterations=self.max_iterations,
+                    sdk_context=self.sdk_context,
                 ).agent
             else:
-                self.__agent = agent_class(llm, tools, self.instruction, tool_retriever, sdk_context=self.sdk_context).agent
+                self.__agent = agent_class(
+                    llm, tools, self.instruction, tool_retriever, sdk_context=self.sdk_context
+                ).agent
 
     def add_tool(self, function_tool):
         self.functions.append(function_tool)

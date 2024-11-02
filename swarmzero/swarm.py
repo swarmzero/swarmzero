@@ -1,7 +1,7 @@
+import json
 import os
 import string
 import uuid
-import json
 from typing import Any, Callable, Dict, List, Optional
 
 from dotenv import load_dotenv
@@ -100,7 +100,6 @@ class Swarm:
 
         custom_tools = tools_from_funcs(funcs=self.functions)
         tools = custom_tools + query_engine_tools
-        
 
         self.__swarm = ReActAgent.from_tools(
             tools=tools,
@@ -108,7 +107,7 @@ class Swarm:
             verbose=True,
             context=self.instruction,
             max_iterations=self.max_iterations,
-            callback_manager = self.sdk_context.get_utility("callback_manager")
+            callback_manager=self.sdk_context.get_utility("callback_manager"),
         )
 
     def add_agent(self, agent: Agent):
@@ -149,7 +148,9 @@ class Swarm:
 
         response = ""
         async for chunk in inject_additional_attributes(
-            lambda: chat_manager.generate_response(db_manager, last_message, stored_files, event_handler, stream_mode=False),
+            lambda: chat_manager.generate_response(
+                db_manager, last_message, stored_files, event_handler, stream_mode=False
+            ),
             {"user_id": user_id},
         ):
             try:
@@ -163,7 +164,7 @@ class Swarm:
                 print(f"Error processing chunk: {e}")
 
         return response
-    
+
     async def chat_stream(
         self,
         prompt: str,
@@ -182,15 +183,19 @@ class Swarm:
             stored_files = await insert_files_to_index(files, self.id, self.sdk_context)
 
         async def stream_response():
-            async for chunk in chat_manager.generate_response(db_manager, last_message, stored_files, event_handler, stream_mode=True):
+            async for chunk in chat_manager.generate_response(
+                db_manager, last_message, stored_files, event_handler, stream_mode=True
+            ):
                 if isinstance(chunk, dict):
                     yield f"0:{json.dumps(chunk)}\n"
                 else:
                     yield f"1:{json.dumps(chunk)}\n"
 
         return StreamingResponse(
-            inject_additional_attributes(stream_response, {"user_id": user_id}), ##Check traceability in langtrace maybe broken?
-            media_type="text/event-stream"
+            inject_additional_attributes(
+                stream_response, {"user_id": user_id}
+            ),  ##Check traceability in langtrace maybe broken?
+            media_type="text/event-stream",
         )
 
     async def chat_history(self, user_id="default_user", session_id="default_chat") -> dict[str, list]:

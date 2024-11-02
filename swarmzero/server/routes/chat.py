@@ -1,7 +1,7 @@
+import json
 import logging
 from datetime import datetime, timezone
 from typing import List
-import json
 
 from fastapi import (
     APIRouter,
@@ -14,11 +14,11 @@ from fastapi import (
     UploadFile,
     status,
 )
+from fastapi.responses import StreamingResponse
 from langtrace_python_sdk import inject_additional_attributes  # type: ignore   # noqa
 from llama_index.core.llms import ChatMessage, MessageRole
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi.responses import StreamingResponse
 
 from swarmzero.chat import ChatManager
 from swarmzero.chat.schemas import ChatData, ChatHistorySchema
@@ -47,7 +47,11 @@ def get_llm_instance(id, sdk_context: SDKContext):
         ).agent
     else:
         llm_instance = attributes["agent_class"](
-            attributes["llm"], attributes["tools"], attributes["instruction"], attributes["tool_retriever"], sdk_context=sdk_context
+            attributes["llm"],
+            attributes["tools"],
+            attributes["instruction"],
+            attributes["tool_retriever"],
+            sdk_context=sdk_context,
         ).agent
     return llm_instance, attributes["enable_multi_modal"]
 
@@ -100,7 +104,9 @@ def setup_chat_routes(router: APIRouter, id, sdk_context: SDKContext):
 
         response = ""
         async for chunk in inject_additional_attributes(
-            lambda: chat_manager.generate_response(db_manager, last_message, stored_files, callback_handler, stream_mode=False),
+            lambda: chat_manager.generate_response(
+                db_manager, last_message, stored_files, callback_handler, stream_mode=False
+            ),
             {"user_id": user_id},
         ):
             if isinstance(chunk, dict):
@@ -111,7 +117,7 @@ def setup_chat_routes(router: APIRouter, id, sdk_context: SDKContext):
                 response += f"1:{json.dumps(chunk)}\n"
 
         return response
-    
+
     @router.post("/chat_stream")
     async def chat_stream(
         request: Request,
@@ -144,22 +150,23 @@ def setup_chat_routes(router: APIRouter, id, sdk_context: SDKContext):
             stored_files = await insert_files_to_index(files, id, sdk_context, user_id, session_id)
 
         async def stream_response():
-            async for chunk in chat_manager.generate_response(db_manager, last_message, stored_files, callback_handler, stream_mode=True):
+            async for chunk in chat_manager.generate_response(
+                db_manager, last_message, stored_files, callback_handler, stream_mode=True
+            ):
                 try:
-                        if isinstance(chunk, dict):
-                            yield f"0:{json.dumps(chunk)}\n"
-                        elif isinstance(chunk, list):
-                            yield f"2:{json.dumps(chunk)}\n"
-                        else:
-                            yield f"1:{json.dumps(chunk)}\n"
+                    if isinstance(chunk, dict):
+                        yield f"0:{json.dumps(chunk)}\n"
+                    elif isinstance(chunk, list):
+                        yield f"2:{json.dumps(chunk)}\n"
+                    else:
+                        yield f"1:{json.dumps(chunk)}\n"
                 except Exception as e:
                     logger.error(f"Error processing chunk: {e}")
                     # In case of error, try to send error message
                     yield f"500:{json.dumps(str(e))}\n"
 
         return StreamingResponse(
-            inject_additional_attributes(stream_response, {"user_id": user_id}),
-            media_type="text/event-stream"
+            inject_additional_attributes(stream_response, {"user_id": user_id}), media_type="text/event-stream"
         )
 
     @router.get("/chat_history", response_model=List[ChatHistorySchema])

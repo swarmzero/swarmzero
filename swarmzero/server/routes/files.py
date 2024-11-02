@@ -66,7 +66,7 @@ async def insert_files_to_index(
             saved_files.append(file_path)
 
             if USE_S3:
-                retriever = PineconeRetriever(sdk_context = sdk_context)
+                retriever = PineconeRetriever(sdk_context=sdk_context)
                 collection_name = user_id + session_id if user_id and session_id else "swarmzero-pinecone"
                 index, file_names = retriever.create_serverless_index(
                     file_path=[file_path], collection_name=collection_name

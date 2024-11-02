@@ -119,7 +119,7 @@ def llm_from_config_without_agent(config: Config, sdk_context: SDKContext):
         return ClaudeLLM(llm=llm_from_config(config), sdk_context=sdk_context)
     elif "llama" in model:
         logger.info("OllamaLLM selected")
-        return OllamaLLM(llm=llm_from_config(config), sdk_context=sdk_context   )
+        return OllamaLLM(llm=llm_from_config(config), sdk_context=sdk_context)
     elif any(keyword in model for keyword in ["mixtral", "mistral", "codestral"]):
         logger.info("MistralLLM selected")
         return MistralLLM(llm=llm_from_config(config), sdk_context=sdk_context)

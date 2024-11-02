@@ -3,8 +3,9 @@ import pickle
 
 from llama_index.core import SimpleDirectoryReader, VectorStoreIndex
 
-from swarmzero.server.routes import files
 from swarmzero.sdk_context import SDKContext
+from swarmzero.server.routes import files
+
 supported_exts = [".md", ".mdx", ".txt", ".csv", ".docx", ".pdf"]
 index_base_dir = "swarmzero-data/index/store/"
 
@@ -136,7 +137,9 @@ class RetrieverBase:
 
     def create_basic_index(self, file_path=None, folder_path=None):
         documents, file_names = self._load_documents(file_path, folder_path)
-        index = VectorStoreIndex.from_documents(documents, callback_manager=self.sdk_context.get_utility("callback_manager"))
+        index = VectorStoreIndex.from_documents(
+            documents, callback_manager=self.sdk_context.get_utility("callback_manager")
+        )
         return index, file_names
 
     def insert_documents(self, index, file_path=None, folder_path=None):

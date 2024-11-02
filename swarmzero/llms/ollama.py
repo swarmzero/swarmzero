@@ -1,7 +1,8 @@
 from llama_index.core.agent import ReActAgentWorker
 from llama_index.core.settings import Settings
-from swarmzero.sdk_context import SDKContext
+
 from swarmzero.llms.llm import LLM
+from swarmzero.sdk_context import SDKContext
 
 
 class OllamaLLM(LLM):
@@ -13,5 +14,5 @@ class OllamaLLM(LLM):
             llm=llm,
             # verbose=True,
             tool_retriever=self.tool_retriever,
-            callback_manager=sdk_context.get_utility("callback_manager")
+            callback_manager=sdk_context.get_utility("callback_manager"),
         ).as_agent()

@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock, patch, AsyncMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from llama_index.agent.openai import OpenAIAgent  # type: ignore
@@ -153,6 +153,7 @@ async def test_execute_task_success(multi_modal_agent):
     assert result == "multimodal response"
     multi_modal_agent._arun_step.assert_called_once_with("task_id_123")
 
+
 @pytest.mark.asyncio
 async def test_execute_task_with_exception(multi_modal_agent):
     async def mock_arun_step(task_id):
@@ -181,7 +182,7 @@ async def test_generate_response_with_openai_agent(agent, db_manager):
         async for chunk in chat_manager.generate_response(db_manager, user_message, []):
             if chunk is not None:
                 response += chunk
-        
+
         response = response.replace("END_OF_STREAM", "")
         assert response == "chat response"
 

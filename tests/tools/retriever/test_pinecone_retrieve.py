@@ -2,8 +2,9 @@ import os
 import unittest
 from unittest.mock import ANY, MagicMock, patch
 
-from swarmzero.tools.retriever.pinecone_retrieve import PineconeRetriever
 from swarmzero.sdk_context import SDKContext  # Import SDKContext
+from swarmzero.tools.retriever.pinecone_retrieve import PineconeRetriever
+
 
 class TestPineconeRetriever(unittest.TestCase):
 
@@ -37,7 +38,7 @@ class TestPineconeRetriever(unittest.TestCase):
         VectorStoreIndexMock.from_documents.assert_called_once_with(
             ['doc1', 'doc2'],
             storage_context=StorageContextMock.from_defaults.return_value,
-            callback_manager=self.mock_sdk_context.get_utility.return_value
+            callback_manager=self.mock_sdk_context.get_utility.return_value,
         )
         self.assertEqual(index, VectorStoreIndexMock.from_documents.return_value)
         self.assertEqual(file_names, ['file1.txt', 'file2.txt'])
@@ -59,7 +60,7 @@ class TestPineconeRetriever(unittest.TestCase):
         VectorStoreIndexMock.from_documents.assert_called_once_with(
             ['doc1', 'doc2'],
             storage_context=StorageContextMock.from_defaults.return_value,
-            callback_manager=self.mock_sdk_context.get_utility.return_value
+            callback_manager=self.mock_sdk_context.get_utility.return_value,
         )
         self.assertEqual(index, VectorStoreIndexMock.from_documents.return_value)
         self.assertEqual(file_names, ['file1.txt', 'file2.txt'])

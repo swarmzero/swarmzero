@@ -75,11 +75,12 @@ async def setup_chats_table(db: AsyncSession):
         "timestamp": "String",
         "agent_id": "String",
         "swarm_id": "String",
-        "event" : "JSON"
+        "event": "JSON",
     }
 
     await db_manager.create_table("chats", columns)
     logger.info("Table 'chats' created successfully.")
+
 
 class DatabaseManager:
     sqlalchemy_types = {

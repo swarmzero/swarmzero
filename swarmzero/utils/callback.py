@@ -9,6 +9,7 @@ from llama_index.core.tools.types import ToolOutput
 
 logger = logging.getLogger(__name__)
 
+
 class EventCallbackHandler(BaseCallbackHandler):
     _aqueue: asyncio.Queue
     is_done: bool = False
@@ -24,7 +25,7 @@ class EventCallbackHandler(BaseCallbackHandler):
         ]
         super().__init__(ignored_events, ignored_events)
         self._aqueue = asyncio.Queue()
-        
+
     def get_retrieval_message(self, payload: Optional[Dict[str, Any]]) -> dict | None:
         if payload:
             nodes = payload.get("nodes")

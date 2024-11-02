@@ -31,13 +31,14 @@ class ChatManager:
     def is_valid_image(self, file_path: str) -> bool:
         return Path(file_path).suffix.lower() in self.allowed_image_extensions
 
-    async def add_message(self, db_manager: DatabaseManager, role: str, content: Any | None):
+    async def add_message(self, db_manager: DatabaseManager, role: str, content: Any | None, event: Any | None):
         data = {
             "user_id": self.user_id,
             "session_id": self.session_id,
             "message": content,
             "role": role,
             "timestamp": datetime.now(timezone.utc).isoformat(),
+            "event": event
         }
         if "AGENT_ID" in os.environ:
             data["agent_id"] = os.getenv("AGENT_ID", "")
@@ -46,24 +47,6 @@ class ChatManager:
 
         await db_manager.insert_data(
             table_name="chats",
-            data=data,
-        )
-
-    async def add_event(self, db_manager: DatabaseManager, role: str, content: Any | None):
-        data = {
-            "user_id": self.user_id,
-            "session_id": self.session_id,
-            "message": content,
-            "role": role,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-        }
-        if "AGENT_ID" in os.environ:
-            data["agent_id"] = os.getenv("AGENT_ID", "")
-        if "SWARM_ID" in os.environ:
-            data["swarm_id"] = os.getenv("SWARM_ID", "")
-
-        await db_manager.insert_data(
-            table_name="events",
             data=data,
         )
 
@@ -116,7 +99,7 @@ class ChatManager:
 
         if db_manager is not None:
             chat_history = await self.get_messages(db_manager)
-            await self.add_message(db_manager, last_message.role.value, last_message.content)
+            await self.add_message(db_manager, last_message.role.value, last_message.content, [])
 
         if self.enable_multi_modal:
             image_documents = (
@@ -132,10 +115,11 @@ class ChatManager:
             async for chunk in self._handle_multimodal_task(last_message, chat_history, image_documents, event_handler, stream_mode):
                 if db_manager is not None and not stream_mode:
                     if isinstance(chunk,dict):
-                        await self.add_event(db_manager, MessageRole.ASSISTANT, chunk)
+                        collected_event_chunks.append(chunk)
                     else:
                         if chunk != "END_OF_STREAM":
-                            await self.add_message(db_manager, MessageRole.ASSISTANT, chunk)
+                            await self.add_message(db_manager, MessageRole.ASSISTANT, chunk,collected_event_chunks)
+                            collected_event_chunks = []
 
                 if db_manager is not None and stream_mode:
                     if isinstance(chunk,dict):
@@ -143,14 +127,13 @@ class ChatManager:
                     else:
                         collected_message_chunks.append(chunk)
                     if chunk == "END_OF_STREAM":
-                        await self.add_message(db_manager, MessageRole.ASSISTANT, ''.join(collected_message_chunks[:-1]))
-                        await self.add_event(db_manager, MessageRole.ASSISTANT, collected_event_chunks)
+                        await self.add_message(db_manager, MessageRole.ASSISTANT, ''.join(collected_message_chunks[:-1]),collected_event_chunks)
                         collected_event_chunks = []
                         collected_message_chunks = []
 
                 yield chunk
 
-            question_data = await self.next_question_suggestion.suggest_next_questions( chat_history, ''.join(collected_message_chunks[:-1]))
+            question_data = await self.next_question_suggestion.suggest_next_questions( chat_history, ''.join(collected_message_chunks[:-1]), self.llm)
             print(question_data)
             yield question_data
 
@@ -158,10 +141,11 @@ class ChatManager:
             async for chunk in self._handle_task(last_message, chat_history, event_handler, stream_mode):
                 if db_manager is not None and not stream_mode:
                     if isinstance(chunk,dict):
-                        await self.add_event(db_manager, MessageRole.ASSISTANT, chunk)
+                        collected_event_chunks.append(chunk)
                     else:
                         if chunk != "END_OF_STREAM":
-                            await self.add_message(db_manager, MessageRole.ASSISTANT, chunk)
+                            await self.add_message(db_manager, MessageRole.ASSISTANT, chunk,collected_event_chunks)
+                            collected_event_chunks = []
 
                 if db_manager is not None and stream_mode:
                     if isinstance(chunk,dict):
@@ -169,14 +153,13 @@ class ChatManager:
                     else:
                         collected_message_chunks.append(chunk)
                     if chunk == "END_OF_STREAM":
-                        await self.add_message(db_manager, MessageRole.ASSISTANT, ''.join(collected_message_chunks[:-1]))
-                        await self.add_event(db_manager, MessageRole.ASSISTANT, collected_event_chunks)
+                        await self.add_message(db_manager, MessageRole.ASSISTANT, ''.join(collected_message_chunks[:-1]),collected_event_chunks)
                         collected_event_chunks = []
                         collected_message_chunks = []
 
                 yield chunk
 
-            question_data = await self.next_question_suggestion.suggest_next_questions( chat_history, ''.join(collected_message_chunks[:-1]))
+            question_data = await self.next_question_suggestion.suggest_next_questions( chat_history, ''.join(collected_message_chunks[:-1]), self.llm)
             print(question_data)
             yield question_data
 

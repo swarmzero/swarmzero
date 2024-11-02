@@ -13,7 +13,6 @@ from swarmzero.database.database import (
     get_db,
     initialize_db,
     setup_chats_table,
-    setup_events_table
 )
 
 from swarmzero.utils import EventCallbackHandler
@@ -484,7 +483,6 @@ class SDKContext:
             await initialize_db()
             async for db in get_db():
                 await setup_chats_table(db)
-                await setup_events_table(db)
                 db_manager = DatabaseManager(db)
                 self.add_utility(db_manager, utility_type="DatabaseManager", name="db_manager")
                 break  # Exit after getting the first session

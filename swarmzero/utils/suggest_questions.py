@@ -2,7 +2,7 @@ import logging
 import os
 import re
 from typing import List, Optional
-
+from llama_index.core.agent.runner.base import AgentRunner
 from swarmzero.chat.schemas import Message
 from llama_index.core.prompts import PromptTemplate
 from llama_index.core.settings import Settings
@@ -40,6 +40,7 @@ class NextQuestionSuggestion:
     async def suggest_next_questions_all_messages(
         cls,
         messages: List[Message],
+        llm: AgentRunner,
     ) -> Optional[List[str]]:
         """
         Suggest the next questions that user might ask based on the conversation history
@@ -64,8 +65,8 @@ class NextQuestionSuggestion:
 
             # Call the LLM and parse questions from the output
             prompt = prompt_template.format(conversation=conversation)
-            output = await Settings.llm.acomplete(prompt)
-            questions = cls._extract_questions(output.text)
+            output = llm.chat(prompt)
+            questions = cls._extract_questions(output.response)
 
             return questions
         except Exception as e:
@@ -83,9 +84,10 @@ class NextQuestionSuggestion:
         cls,
         chat_history: List[Message],
         response: str,
+        llm: AgentRunner,
     ) -> List[str]:
         """
         Suggest the next questions that user might ask based on the chat history and the last response
         """
         messages = chat_history + [Message(role="assistant", content=response)]
-        return await cls.suggest_next_questions_all_messages(messages)
+        return await cls.suggest_next_questions_all_messages(messages, llm)

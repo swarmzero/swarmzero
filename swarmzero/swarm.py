@@ -135,7 +135,41 @@ class Swarm:
         user_id="default_user",
         session_id="default_chat",
         files: Optional[List[UploadFile]] = [],
-        stream_mode: bool = False,
+    ):
+        await self._ensure_utilities_loaded()
+        db_manager = self.sdk_context.get_utility("db_manager")
+
+        chat_manager = ChatManager(self.__swarm, user_id=user_id, session_id=session_id)
+        last_message = ChatMessage(role=MessageRole.USER, content=prompt)
+        event_handler = self.sdk_context.get_utility("reasoning_callback")
+
+        stored_files = []
+        if files and len(files) > 0:
+            stored_files = await insert_files_to_index(files, self.id, self.sdk_context)
+
+        response = ""
+        async for chunk in inject_additional_attributes(
+            lambda: chat_manager.generate_response(db_manager, last_message, stored_files, event_handler, stream_mode=False),
+            {"user_id": user_id},
+        ):
+            try:
+                if isinstance(chunk, dict):
+                    response += f"0:{json.dumps(chunk)}\n"
+                elif isinstance(chunk, list):
+                    response += f"2:{json.dumps(chunk)}\n"
+                else:
+                    response += f"1:{json.dumps(chunk)}\n"
+            except Exception as e:
+                print(f"Error processing chunk: {e}")
+
+        return response
+    
+    async def chat_stream(
+        self,
+        prompt: str,
+        user_id="default_user",
+        session_id="default_chat",
+        files: Optional[List[UploadFile]] = [],
     ) -> StreamingResponse:
         await self._ensure_utilities_loaded()
         db_manager = self.sdk_context.get_utility("db_manager")
@@ -148,7 +182,7 @@ class Swarm:
             stored_files = await insert_files_to_index(files, self.id, self.sdk_context)
 
         async def stream_response():
-            async for chunk in chat_manager.generate_response(db_manager, last_message, stored_files, event_handler, stream_mode):
+            async for chunk in chat_manager.generate_response(db_manager, last_message, stored_files, event_handler, stream_mode=True):
                 if isinstance(chunk, dict):
                     yield f"0:{json.dumps(chunk)}\n"
                 else:

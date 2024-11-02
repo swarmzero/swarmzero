@@ -69,7 +69,7 @@ def db_manager():
 @pytest.mark.asyncio
 async def test_add_message(agent, db_manager):
     chat_manager = ChatManager(agent, user_id="123", session_id="abc")
-    await chat_manager.add_message(db_manager, MessageRole.USER, "Hello!")
+    await chat_manager.add_message(db_manager, MessageRole.USER, "Hello!", {'event': 'event'})
     messages = await chat_manager.get_messages(db_manager)
     assert len(messages) == 1
     assert messages[0].content == "Hello!"
@@ -97,12 +97,12 @@ async def test_generate_response_with_generic_llm(agent, db_manager):
 @pytest.mark.asyncio
 async def test_get_all_chats_for_user(agent, db_manager):
     chat_manager1 = ChatManager(agent, user_id="123", session_id="abc")
-    await chat_manager1.add_message(db_manager, MessageRole.USER, "Hello in abc")
-    await chat_manager1.add_message(db_manager, MessageRole.ASSISTANT, "Response in abc")
+    await chat_manager1.add_message(db_manager, MessageRole.USER, "Hello in abc", {'event': 'event'})
+    await chat_manager1.add_message(db_manager, MessageRole.ASSISTANT, "Response in abc", {'event': 'event'})
 
     chat_manager2 = ChatManager(agent, user_id="123", session_id="def")
-    await chat_manager2.add_message(db_manager, MessageRole.USER, "Hello in def")
-    await chat_manager2.add_message(db_manager, MessageRole.ASSISTANT, "Response in def")
+    await chat_manager2.add_message(db_manager, MessageRole.USER, "Hello in def", {'event': 'event'})
+    await chat_manager2.add_message(db_manager, MessageRole.ASSISTANT, "Response in def", {'event': 'event'})
 
     chat_manager = ChatManager(agent, user_id="123", session_id="")
     all_chats = await chat_manager.get_all_chats_for_user(db_manager)

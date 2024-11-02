@@ -177,9 +177,24 @@ def test_assign_agent(agent):
 
                 # expected_mock_class.reset_mock()
 
-
 @pytest.mark.asyncio
 async def test_chat_method(agent):
+    mock_chat_manager = AsyncMock(spec=ChatManager)
+    
+    async def mock_generate_response(*args, **kwargs):
+        yield "Test response"
+        yield "END_OF_STREAM"
+    
+    mock_chat_manager.generate_response = mock_generate_response
+
+    with patch('swarmzero.agent.ChatManager', return_value=mock_chat_manager):
+        response = await agent.chat(prompt="Test prompt", user_id="test_user", session_id="test_session")
+        
+        # The response should contain the test response followed by END_OF_STREAM
+        assert "Test response" in response
+
+@pytest.mark.asyncio
+async def test_chat_stream_method(agent):
     mock_chat_manager = AsyncMock(spec=ChatManager)
     
     async def mock_generate_response(*args, **kwargs):
@@ -189,7 +204,7 @@ async def test_chat_method(agent):
     mock_chat_manager.generate_response = mock_generate_response
 
     with patch('swarmzero.agent.ChatManager', return_value=mock_chat_manager):
-        response = await agent.chat(prompt="Test prompt", user_id="test_user", session_id="test_session")
+        response = await agent.chat_stream(prompt="Test prompt", user_id="test_user", session_id="test_session")
         
         response_content = []
         async for chunk in response.body_iterator:
@@ -200,9 +215,27 @@ async def test_chat_method(agent):
         
         assert "".join(response_content) == json.dumps("Test response") + json.dumps("END_OF_STREAM")
 
-
 @pytest.mark.asyncio
 async def test_chat_method_error_handling(agent):
+    """Test error handling in the chat method."""
+    agent.sdk_context.get_utility = MagicMock(return_value=MagicMock())
+    agent._ensure_utilities_loaded = AsyncMock()
+
+    async def mock_generate_response(*args, **kwargs):
+        raise Exception("Test error")
+        yield  # This line is never reached but needed for async generator syntax
+
+    with patch("swarmzero.agent.ChatManager", autospec=True) as mock_chat_manager_class:
+        mock_chat_manager_instance = mock_chat_manager_class.return_value
+        mock_chat_manager_instance.generate_response = mock_generate_response
+
+        with pytest.raises(Exception) as exc_info:
+            await agent.chat("Hello")
+
+        assert "Test error" in str(exc_info.value)
+
+@pytest.mark.asyncio
+async def test_chat_stream_method_error_handling(agent):
     """Test error handling in the chat method."""
     mock_chat_manager = AsyncMock(spec=ChatManager)
     
@@ -212,7 +245,7 @@ async def test_chat_method_error_handling(agent):
     mock_chat_manager.generate_response = mock_generate_response
 
     with patch('swarmzero.agent.ChatManager', return_value=mock_chat_manager):
-        response = await agent.chat(prompt="Test prompt", user_id="test_user", session_id="test_session")
+        response = await agent.chat_stream(prompt="Test prompt", user_id="test_user", session_id="test_session")
         
         async for chunk in response.body_iterator:
             if chunk.startswith("1:"):  # Message chunk

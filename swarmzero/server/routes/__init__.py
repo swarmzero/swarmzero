@@ -3,7 +3,7 @@ from typing import Any
 from dotenv import load_dotenv
 from fastapi import APIRouter, FastAPI
 
-from swarmzero.database.database import get_db, initialize_db, setup_chats_table, setup_events_table
+from swarmzero.database.database import get_db, initialize_db, setup_chats_table
 from swarmzero.sdk_context import SDKContext
 
 from .chat import setup_chat_routes
@@ -23,7 +23,6 @@ def setup_routes(app: FastAPI, id: str, sdk_context: SDKContext):
 
         async for db in get_db():
             await setup_chats_table(db)
-            await setup_events_table(db)
 
     @app.get("/")
     def read_root():

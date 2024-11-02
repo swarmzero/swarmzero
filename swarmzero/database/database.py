@@ -75,30 +75,10 @@ async def setup_chats_table(db: AsyncSession):
         "timestamp": "String",
         "agent_id": "String",
         "swarm_id": "String",
+        "event" : "JSON"
     }
 
     await db_manager.create_table("chats", columns)
-    logger.info("Table 'chats' created successfully.")
-
-async def setup_events_table(db: AsyncSession):
-    db_manager = DatabaseManager(db)
-    table_exists = await db_manager.get_table_definition("events")
-
-    if table_exists:
-        logger.info("Table 'events' already exists. Skipping creation.")
-        return
-
-    columns = {
-        "user_id": "String",
-        "session_id": "String",
-        "message": "JSON",
-        "role": "String",
-        "timestamp": "String",
-        "agent_id": "String",
-        "swarm_id": "String",
-    }
-
-    await db_manager.create_table("events", columns)
     logger.info("Table 'chats' created successfully.")
 
 class DatabaseManager:

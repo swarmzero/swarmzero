@@ -24,7 +24,7 @@ class ChromaRetriever(RetrieverBase):
 
         vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
         storage_context = StorageContext.from_defaults(vector_store=vector_store)
-        index = VectorStoreIndex.from_documents(documents, storage_context=storage_context)
+        index = VectorStoreIndex.from_documents(documents, storage_context=storage_context, callback_manager=self.sdk_context.get_utility("callback_manager"))
         return index, file_names
 
     def delete_collection(self, collection_name="swarmzero_chroma"):

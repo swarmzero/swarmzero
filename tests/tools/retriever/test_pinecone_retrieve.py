@@ -3,7 +3,7 @@ import unittest
 from unittest.mock import ANY, MagicMock, patch
 
 from swarmzero.tools.retriever.pinecone_retrieve import PineconeRetriever
-
+from swarmzero.sdk_context import SDKContext  # Import SDKContext
 
 class TestPineconeRetriever(unittest.TestCase):
 
@@ -14,6 +14,11 @@ class TestPineconeRetriever(unittest.TestCase):
         self.pinecone_client_mock.Index = MagicMock()
         self.retriever = PineconeRetriever()
         self.retriever.pinecone_client = self.pinecone_client_mock
+
+        # Mock the sdk_context and set it on the retriever
+        self.mock_sdk_context = MagicMock(spec=SDKContext)
+        self.mock_sdk_context.get_utility.return_value = MagicMock()
+        self.retriever.sdk_context = self.mock_sdk_context
 
     @patch('swarmzero.tools.retriever.pinecone_retrieve.PineconeVectorStore')
     @patch('swarmzero.tools.retriever.pinecone_retrieve.StorageContext')
@@ -30,7 +35,9 @@ class TestPineconeRetriever(unittest.TestCase):
         PineconeVectorStoreMock.assert_called_once()
         StorageContextMock.from_defaults.assert_called_once()
         VectorStoreIndexMock.from_documents.assert_called_once_with(
-            ['doc1', 'doc2'], storage_context=StorageContextMock.from_defaults.return_value
+            ['doc1', 'doc2'],
+            storage_context=StorageContextMock.from_defaults.return_value,
+            callback_manager=self.mock_sdk_context.get_utility.return_value
         )
         self.assertEqual(index, VectorStoreIndexMock.from_documents.return_value)
         self.assertEqual(file_names, ['file1.txt', 'file2.txt'])
@@ -50,7 +57,9 @@ class TestPineconeRetriever(unittest.TestCase):
         PineconeVectorStoreMock.assert_called_once()
         StorageContextMock.from_defaults.assert_called_once()
         VectorStoreIndexMock.from_documents.assert_called_once_with(
-            ['doc1', 'doc2'], storage_context=StorageContextMock.from_defaults.return_value
+            ['doc1', 'doc2'],
+            storage_context=StorageContextMock.from_defaults.return_value,
+            callback_manager=self.mock_sdk_context.get_utility.return_value
         )
         self.assertEqual(index, VectorStoreIndexMock.from_documents.return_value)
         self.assertEqual(file_names, ['file1.txt', 'file2.txt'])

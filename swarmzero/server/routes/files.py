@@ -66,7 +66,7 @@ async def insert_files_to_index(
             saved_files.append(file_path)
 
             if USE_S3:
-                retriever = PineconeRetriever()
+                retriever = PineconeRetriever(sdk_context = sdk_context)
                 collection_name = user_id + session_id if user_id and session_id else "swarmzero-pinecone"
                 index, file_names = retriever.create_serverless_index(
                     file_path=[file_path], collection_name=collection_name
@@ -88,7 +88,7 @@ async def insert_files_to_index(
                 index_store.save_to_file()
 
             else:
-                retriever = RetrieverBase()
+                retriever = RetrieverBase(sdk_context=sdk_context)
                 index, file_names = retriever.create_basic_index([file_path])
                 index_store.add_index(retriever.name, index, file_names)
                 logger.info("Inserting data to new basic index")

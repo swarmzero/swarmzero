@@ -1,6 +1,7 @@
 import logging
 from datetime import datetime, timezone
 from typing import List
+import json
 
 from fastapi import (
     APIRouter,
@@ -17,6 +18,7 @@ from langtrace_python_sdk import inject_additional_attributes  # type: ignore   
 from llama_index.core.llms import ChatMessage, MessageRole
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi.responses import StreamingResponse
 
 from swarmzero.chat import ChatManager
 from swarmzero.chat.schemas import ChatData, ChatHistorySchema
@@ -33,6 +35,7 @@ def get_llm_instance(id, sdk_context: SDKContext):
     attributes = sdk_context.get_attributes(
         id, "llm", "agent_class", "tools", "instruction", "tool_retriever", "enable_multi_modal", "max_iterations"
     )
+
     if attributes['agent_class'] == OpenAIMultiModalLLM:
         llm_instance = attributes["agent_class"](
             attributes["llm"],
@@ -40,10 +43,11 @@ def get_llm_instance(id, sdk_context: SDKContext):
             attributes["instruction"],
             attributes["tool_retriever"],
             max_iterations=attributes["max_iterations"],
+            sdk_context=sdk_context,
         ).agent
     else:
         llm_instance = attributes["agent_class"](
-            attributes["llm"], attributes["tools"], attributes["instruction"], attributes["tool_retriever"]
+            attributes["llm"], attributes["tools"], attributes["instruction"], attributes["tool_retriever"], sdk_context=sdk_context
         ).agent
     return llm_instance, attributes["enable_multi_modal"]
 
@@ -81,6 +85,7 @@ def setup_chat_routes(router: APIRouter, id, sdk_context: SDKContext):
             )
 
         llm_instance, enable_multi_modal = get_llm_instance(id, sdk_context)
+        callback_handler = sdk_context.get_utility("reasoning_callback")
 
         chat_manager = ChatManager(
             llm_instance, user_id=user_id, session_id=session_id, enable_multi_modal=enable_multi_modal
@@ -93,8 +98,68 @@ def setup_chat_routes(router: APIRouter, id, sdk_context: SDKContext):
         if files and len(files) > 0:
             stored_files = await insert_files_to_index(files, id, sdk_context, user_id, session_id)
 
-        return await inject_additional_attributes(
-            lambda: chat_manager.generate_response(db_manager, last_message, stored_files), {"user_id": user_id}
+        response = ""
+        async for chunk in inject_additional_attributes(
+            lambda: chat_manager.generate_response(db_manager, last_message, stored_files, callback_handler, stream_mode=False),
+            {"user_id": user_id},
+        ):
+            if isinstance(chunk, dict):
+                response += f"0:{json.dumps(chunk)}\n"
+            elif isinstance(chunk, list):
+                response += f"2:{json.dumps(chunk)}\n"
+            else:
+                response += f"1:{json.dumps(chunk)}\n"
+
+        return response
+    
+    @router.post("/chat_stream")
+    async def chat_stream(
+        request: Request,
+        user_id: str = Form(...),
+        session_id: str = Form(...),
+        chat_data: str = Form(...),
+        files: List[UploadFile] = File([]),
+        db: AsyncSession = Depends(get_db),
+    ):
+        try:
+            chat_data_parsed = ChatData.model_validate_json(chat_data)
+        except ValidationError as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Chat data is malformed: {e.json()}",
+            )
+
+        llm_instance, enable_multi_modal = get_llm_instance(id, sdk_context)
+        callback_handler = sdk_context.get_utility("reasoning_callback")
+
+        chat_manager = ChatManager(
+            llm_instance, user_id=user_id, session_id=session_id, enable_multi_modal=enable_multi_modal
+        )
+        db_manager = DatabaseManager(db)
+
+        last_message, _ = await validate_chat_data(chat_data_parsed)
+
+        stored_files = []
+        if files and len(files) > 0:
+            stored_files = await insert_files_to_index(files, id, sdk_context, user_id, session_id)
+
+        async def stream_response():
+            async for chunk in chat_manager.generate_response(db_manager, last_message, stored_files, callback_handler, stream_mode=True):
+                try:
+                        if isinstance(chunk, dict):
+                            yield f"0:{json.dumps(chunk)}\n"
+                        elif isinstance(chunk, list):
+                            yield f"2:{json.dumps(chunk)}\n"
+                        else:
+                            yield f"1:{json.dumps(chunk)}\n"
+                except Exception as e:
+                    logger.error(f"Error processing chunk: {e}")
+                    # In case of error, try to send error message
+                    yield f"500:{json.dumps(str(e))}\n"
+
+        return StreamingResponse(
+            inject_additional_attributes(stream_response, {"user_id": user_id}),
+            media_type="text/event-stream"
         )
 
     @router.get("/chat_history", response_model=List[ChatHistorySchema])

@@ -32,7 +32,7 @@ def sdk_context():
     mock_context = MagicMock(spec=SDKContext)
     mock_context.get_attributes.return_value = {
         'llm': MagicMock(),
-        'agent_class': lambda *args: MagicMock(agent=MockAgent()),
+        'agent_class': lambda llm, tools, instruction, tool_retriever, sdk_context=None: MagicMock(agent=MockAgent()),
         'tools': [],
         'instruction': "",
         'tool_retriever': None,
@@ -102,12 +102,15 @@ async def test_chat_malformed_chat_data(client):
 
 @pytest.mark.asyncio
 async def test_chat_success(client, agent):
+    async def mock_generate_response(*args, **kwargs):
+        yield "mock chunk 1"
+        yield "mock chunk 2"
+
     with (
-        patch("swarmzero.server.routes.chat.ChatManager.generate_response", return_value="chat response"),
+        patch("swarmzero.server.routes.chat.ChatManager.generate_response", side_effect=mock_generate_response),
         patch('swarmzero.server.routes.chat.insert_files_to_index', return_value=['test.txt']),
         patch("swarmzero.server.routes.chat.inject_additional_attributes", new=lambda fn, attributes=None: fn()),
     ):
-
         payload = {
             "user_id": "user1",
             "session_id": "session1",
@@ -115,23 +118,26 @@ async def test_chat_success(client, agent):
         }
 
         files = [("files", ("test.txt", BytesIO(b"test content"), "text/plain"))]
-
         response = await client.post("/api/v1/chat", data=payload, files={**dict(files)})
-
+        
         assert response.status_code == status.HTTP_200_OK
-        assert response.text == "chat response" or response.text == '"chat response"'
+        response_text = response.text.strip()
+        assert "mock chunk" in response_text
 
 
 @pytest.mark.asyncio
 async def test_chat_with_image(client, agent):
+    async def mock_generate_response(*args, **kwargs):
+        yield "chat response"
+
     with (
         patch(
-            "swarmzero.server.routes.chat.ChatManager.generate_response", return_value="chat response"
+            "swarmzero.server.routes.chat.ChatManager.generate_response", 
+            side_effect=mock_generate_response
         ) as mock_generate_response,
         patch('swarmzero.server.routes.chat.insert_files_to_index', return_value=['test.txt', 'test.jpg']),
         patch("swarmzero.server.routes.chat.inject_additional_attributes", new=lambda fn, attributes=None: fn()),
     ):
-
         payload = {
             "user_id": "user1",
             "session_id": "session1",
@@ -146,8 +152,14 @@ async def test_chat_with_image(client, agent):
         response = await client.post("/api/v1/chat", data=payload, files={**dict(files)})
 
         assert response.status_code == status.HTTP_200_OK
-        assert response.text == "chat response" or response.text == '"chat response"'
-        mock_generate_response.assert_called_once_with(ANY, ANY, ['test.txt', 'test.jpg'])
+        assert "chat response" in response.text
+        mock_generate_response.assert_called_once_with(
+            ANY,  # db_manager
+            ANY,  # last_message
+            ['test.txt', 'test.jpg'],  # files
+            ANY,  # event_handler
+            stream_mode=False  # stream_mode parameter
+        )
 
 
 @pytest.mark.asyncio

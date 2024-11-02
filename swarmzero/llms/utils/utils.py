@@ -3,6 +3,8 @@ import os
 
 from dotenv import load_dotenv
 
+from swarmzero.sdk_context import SDKContext
+
 if "LANGTRACE_API_KEY" in os.environ:
     from langtrace_python_sdk import langtrace  # type: ignore # noqa
 
@@ -102,27 +104,27 @@ def llm_from_config(config: Config):
         return _create_llm("OpenAI", config)
 
 
-def llm_from_config_without_agent(config: Config):
+def llm_from_config_without_agent(config: Config, sdk_context: SDKContext):
     model = config.get("model")
     enable_multi_modal = config.get("enable_multi_modal")
 
     if "gpt" in model:
         if model.startswith("gpt-4") and enable_multi_modal is True:
             logger.info("OpenAIMultiModalLLM selected")
-            return OpenAIMultiModalLLM(llm=llm_from_config(config))
+            return OpenAIMultiModalLLM(llm=llm_from_config(config), sdk_context=sdk_context)
         logger.info("OpenAILLM selected")
-        return OpenAILLM(llm=llm_from_config(config))
+        return OpenAILLM(llm=llm_from_config(config), sdk_context=sdk_context)
     elif "claude" in model:
         logger.info("ClaudeLLM selected")
-        return ClaudeLLM(llm=llm_from_config(config))
+        return ClaudeLLM(llm=llm_from_config(config), sdk_context=sdk_context)
     elif "llama" in model:
         logger.info("OllamaLLM selected")
-        return OllamaLLM(llm=llm_from_config(config))
+        return OllamaLLM(llm=llm_from_config(config), sdk_context=sdk_context   )
     elif any(keyword in model for keyword in ["mixtral", "mistral", "codestral"]):
         logger.info("MistralLLM selected")
-        return MistralLLM(llm=llm_from_config(config))
+        return MistralLLM(llm=llm_from_config(config), sdk_context=sdk_context)
     else:
         logger.info("Default OpenAILLM selected")
-        return OpenAILLM(llm=llm_from_config(config))
+        return OpenAILLM(llm=llm_from_config(config), sdk_context=sdk_context)
 
     return llm_from_config(config)

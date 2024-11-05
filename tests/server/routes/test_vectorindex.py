@@ -6,13 +6,16 @@ from fastapi import APIRouter, FastAPI
 from httpx import AsyncClient
 
 from swarmzero.server.routes.vectorindex import setup_vectorindex_routes
+from swarmzero.sdk_context import SDKContext
 
 
 @pytest.fixture(scope="module")
 def app():
     fastapi_app = FastAPI()
     router = APIRouter()
-    setup_vectorindex_routes(router)
+    mock_sdk_context = MagicMock(spec=SDKContext)
+    mock_sdk_context.get_utility.return_value = MagicMock()
+    setup_vectorindex_routes(router, mock_sdk_context)
     fastapi_app.include_router(router)
     return fastapi_app
 
@@ -86,7 +89,7 @@ async def test_create_index_pinecone_pod(client):
 @pytest.mark.asyncio
 async def test_insert_documents(client):
     with (
-        patch('swarmzero.server.routes.vectorindex.index_store') as mock_index_store,
+        patch('swarmzero.utils.indexstore') as mock_index_store,
         patch('swarmzero.tools.retriever.base_retrieve.RetrieverBase.insert_documents') as mock_insert,
     ):
         mock_index = MagicMock()
@@ -103,7 +106,7 @@ async def test_insert_documents(client):
 @pytest.mark.asyncio
 async def test_update_documents(client):
     with (
-        patch('swarmzero.server.routes.vectorindex.index_store') as mock_index_store,
+        patch('swarmzero.utils.indexstore') as mock_index_store,
         patch('swarmzero.tools.retriever.base_retrieve.RetrieverBase.update_documents') as mock_update,
     ):
         mock_index = MagicMock()
@@ -120,7 +123,7 @@ async def test_update_documents(client):
 @pytest.mark.asyncio
 async def test_delete_documents(client):
     with (
-        patch('swarmzero.server.routes.vectorindex.index_store') as mock_index_store,
+        patch('swarmzero.utils.indexstore') as mock_index_store,
         patch('swarmzero.tools.retriever.base_retrieve.RetrieverBase.delete_documents') as mock_delete,
     ):
         mock_index = MagicMock()

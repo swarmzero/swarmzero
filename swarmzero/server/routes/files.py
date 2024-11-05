@@ -8,7 +8,7 @@ from sqlalchemy.orm.collections import collection
 
 from swarmzero.filestore import BASE_DIR, FileStore
 from swarmzero.sdk_context import SDKContext
-from swarmzero.tools.retriever.base_retrieve import IndexStore, RetrieverBase
+from swarmzero.tools.retriever.base_retrieve import RetrieverBase
 from swarmzero.tools.retriever.pinecone_retrieve import PineconeRetriever
 
 load_dotenv()
@@ -33,7 +33,6 @@ ALLOWED_FILE_TYPES = [
 
 file_store = FileStore(BASE_DIR)
 
-index_store = IndexStore.get_instance()
 USE_S3 = os.getenv("USE_S3", "false").lower() == "true"
 
 
@@ -64,7 +63,7 @@ async def insert_files_to_index(
             else:
                 file_path = "{BASE_DIR}/{filename}".format(BASE_DIR=BASE_DIR, filename=filename)
             saved_files.append(file_path)
-
+            index_store = sdk_context.get_utility("indexstore")
             if USE_S3:
                 retriever = PineconeRetriever(sdk_context=sdk_context)
                 collection_name = user_id + session_id if user_id and session_id else "swarmzero-pinecone"

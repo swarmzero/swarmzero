@@ -33,6 +33,6 @@ def setup_routes(app: FastAPI, id: str, sdk_context: SDKContext):
     setup_database_routes(v1)
     setup_chat_routes(v1, id, sdk_context)
     setup_files_routes(v1, id, sdk_context)
-    setup_vectorindex_routes(v1)
+    setup_vectorindex_routes(v1, sdk_context)
 
     app.include_router(v1, prefix="/api/v1")

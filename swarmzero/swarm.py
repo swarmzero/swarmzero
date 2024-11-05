@@ -61,7 +61,7 @@ class Swarm:
         self.__llm = llm if llm is not None else llm_from_config_without_agent(self.__config, self.sdk_context)
         self.max_iterations = max_iterations
         self.__utilities_loaded = False
-        self.sdk_context.load_callback_manager()
+        self.sdk_context.load_default_utility()
 
         if agents is None:
             agents = self.sdk_context.generate_agents_from_config()
@@ -136,6 +136,7 @@ class Swarm:
         files: Optional[List[UploadFile]] = [],
     ):
         await self._ensure_utilities_loaded()
+        await self.sdk_context.save_sdk_context_to_db()
         db_manager = self.sdk_context.get_utility("db_manager")
 
         chat_manager = ChatManager(self.__swarm, user_id=user_id, session_id=session_id)
@@ -173,6 +174,7 @@ class Swarm:
         files: Optional[List[UploadFile]] = [],
     ) -> StreamingResponse:
         await self._ensure_utilities_loaded()
+        await self.sdk_context.save_sdk_context_to_db()
         db_manager = self.sdk_context.get_utility("db_manager")
 
         chat_manager = ChatManager(self.__swarm, user_id=user_id, session_id=session_id)
@@ -218,5 +220,5 @@ class Swarm:
     async def _ensure_utilities_loaded(self):
         """Load utilities if they are not already loaded."""
         if not self.__utilities_loaded:
-            await self.sdk_context.load_default_utility()
+            await self.sdk_context.load_db_manager()
             self.__utilities_loaded = True

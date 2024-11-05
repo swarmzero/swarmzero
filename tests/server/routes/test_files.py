@@ -9,7 +9,8 @@ from httpx import AsyncClient
 from swarmzero.filestore import FileStore
 from swarmzero.sdk_context import SDKContext
 from swarmzero.server.routes.files import setup_files_routes
-from swarmzero.tools.retriever.base_retrieve import IndexStore, RetrieverBase
+from swarmzero.tools.retriever.base_retrieve import RetrieverBase
+from swarmzero.utils import IndexStore
 
 BASE_DIR = "test_files"
 

@@ -3,8 +3,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from swarmzero.sdk_context import SDKContext
-from swarmzero.tools.retriever.base_retrieve import IndexStore, RetrieverBase
-
+from swarmzero.tools.retriever.base_retrieve import RetrieverBase
+from swarmzero.utils import IndexStore
 
 @pytest.fixture
 def retriever_base():
@@ -20,8 +20,7 @@ def sdk_context():
 
 @pytest.fixture
 def index_store():
-    IndexStore._instance = None  # Reset singleton instance before each test
-    return IndexStore.get_instance()
+    return IndexStore()
 
 
 def test_retriever_base_initialization(retriever_base, sdk_context):

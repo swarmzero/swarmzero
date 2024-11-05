@@ -1,8 +1,0 @@
-[model]
-model = "gpt-4"
-
-[environment]
-type = "dev"
-
-[test_agent]
-model = "gpt-4"

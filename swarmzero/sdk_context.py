@@ -34,9 +34,9 @@ class SDKContext:
 
     def __init__(self, config_path: Optional[str] = "./swarmzero_config_example.yaml"):
         """
-        Initialize the SDKContext with a path to a TOML configuration file.
+        Initialize the SDKContext with a path to a YAML configuration file.
 
-        :param config_path: Path to the TOML configuration file.
+        :param config_path: Path to the YAML configuration file.
         """
         self.config = Config(config_path)
         self.default_config = self.load_default_config()

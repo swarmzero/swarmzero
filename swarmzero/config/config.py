@@ -38,7 +38,7 @@ class Config:
     def save_config(self):
         """Saves the current configuration state to disk."""
         with open(self.config_path, "w") as f:
-            toml.dump(self.config, f)
+            yaml.dump(self.config, f)
 
     def get_log_level(self):
         SWARMZERO_LOG_LEVEL = os.getenv("SWARMZERO_LOG_LEVEL", "INFO").upper()

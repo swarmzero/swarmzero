@@ -9,7 +9,7 @@ from swarmzero.sdk_context import SDKContext
 
 @pytest.fixture
 def sdk_context():
-    return SDKContext("./swarmzero_config_test.toml")
+    return SDKContext("./swarmzero_config_test.yaml")
 
 
 def test_load_default_config(sdk_context):

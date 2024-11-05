@@ -12,13 +12,13 @@ from starlette.datastructures import Headers
 
 from swarmzero.agent import Agent
 from swarmzero.chat import ChatManager
-from swarmzero.tools.retriever.base_retrieve import IndexStore
+from swarmzero.utils import IndexStore
 
 
 @pytest.fixture
 def agent():
     with (
-        patch.object(IndexStore, "get_instance", return_value=IndexStore()),
+        patch.object(IndexStore, "save_to_file", MagicMock()),
         patch("swarmzero.agent.OpenAILLM"),
         patch("swarmzero.agent.ClaudeLLM"),
         patch("swarmzero.agent.MistralLLM"),
@@ -27,7 +27,6 @@ def agent():
         patch("uvicorn.Server.serve", new_callable=MagicMock),
         patch("llama_index.core.VectorStoreIndex.from_documents"),
         patch("llama_index.core.objects.ObjectIndex.from_objects"),
-        patch.object(IndexStore, "save_to_file", MagicMock()),
     ):
         os.environ['ANTHROPIC_API_KEY'] = "anthropic_api_key"
         os.environ['MISTRAL_API_KEY'] = "mistral_api_key"
@@ -45,7 +44,18 @@ def agent():
             retrieval_tool="basic",
             load_index_file=False,
         )
-    return test_agent
+        
+        # Mock the SDK context and database manager
+        mock_db_manager = MagicMock()
+        mock_db_manager.get_table_definition = AsyncMock(return_value=True)
+        mock_db_manager.create_table = AsyncMock()
+        mock_db_manager.insert_data = AsyncMock()
+        
+        test_agent.sdk_context = MagicMock()
+        test_agent.sdk_context.get_utility.return_value = mock_db_manager
+        test_agent.sdk_context.save_sdk_context_to_db = AsyncMock()
+        
+        return test_agent
 
 
 @pytest.mark.asyncio

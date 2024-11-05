@@ -15,8 +15,7 @@ from swarmzero.database.database import (
     initialize_db,
     setup_chats_table,
 )
-from swarmzero.utils import EventCallbackHandler
-
+from swarmzero.utils import EventCallbackHandler,IndexStore
 
 class SDKContext:
 
@@ -295,59 +294,83 @@ class SDKContext:
         Restore non-serializable objects after loading the context.
         """
         from swarmzero.agent import Agent
+        from swarmzero.swarm import Swarm
 
         for name, resource in self.resources.items():
-            if isinstance(resource, dict) and resource["init_params"]["type"] == "agent":
+            if isinstance(resource, dict):
                 params = resource["init_params"]
-                functions = [
-                    getattr(importlib.import_module(func["module"]), func["name"]) for func in params["functions"]
-                ]
+                
+                if params["type"] == "agent":
+                    functions = [
+                        getattr(importlib.import_module(func["module"]), func["name"]) 
+                        for func in params["functions"]
+                    ]
 
-                resource_obj = Agent(
-                    agent_id=params["id"],
-                    name=params["name"],
-                    sdk_context=self,
-                    host=params["host"],
-                    port=params["port"],
-                    instruction=params["instruction"],
-                    role=params["role"],
-                    description=params["description"],
-                    swarm_mode=params["swarm_mode"],
-                    required_exts=params["required_exts"],
-                    retrieval_tool=params["retrieval_tool"],
-                    load_index_file=params["load_index_file"],
-                    functions=functions,
-                )
-                self.resources[name]["object"] = resource_obj
+                    resource_obj = Agent(
+                        agent_id=params["id"],
+                        name=params["name"],
+                        sdk_context=self,
+                        host=params["host"],
+                        port=params["port"],
+                        instruction=params["instruction"],
+                        role=params["role"],
+                        description=params["description"],
+                        swarm_mode=params["swarm_mode"],
+                        required_exts=params["required_exts"],
+                        retrieval_tool=params["retrieval_tool"],
+                        load_index_file=params["load_index_file"],
+                        functions=functions,
+                    )
+                    self.resources[name]["object"] = resource_obj
+                    
+                elif params["type"] == "swarm":
+                    functions = [
+                        getattr(importlib.import_module(func["module"]), func["name"]) 
+                        for func in params["functions"]
+                    ]
+                    
+                    # Get the agent objects that belong to this swarm
+                    agents = []
+                    for agent_id in params["agents"]:
+                        agent_resource = self.get_resource(agent_id)
+                        if agent_resource:
+                            agents.append(agent_resource)
+
+                    resource_obj = Swarm(
+                        name=params["name"],
+                        description=params["description"],
+                        instruction=params["instruction"],
+                        functions=functions,
+                        agents=agents,
+                        swarm_id=params["id"],
+                        sdk_context=self
+                    )
+                    self.resources[name]["object"] = resource_obj
 
     async def initialize_database(self):
         await initialize_db()
 
     async def save_sdk_context_to_db(self):
-        await self.initialize_database()
-
-        async for db in get_db():
-            db_manager = DatabaseManager(db)
-
-            table_exists = await db_manager.get_table_definition("sdkcontext")
-            if table_exists == None:
-                # Create a table to store configuration and resource details as JSON
-                await db_manager.create_table(
-                    "sdkcontext", {"type": "String", "data": "JSON", "create_date": "DateTime"}
-                )
-
-            # Prepare the data to be inserted
-            config_data = {
-                "default_config": self.default_config,
-                "agent_configs": self.agent_configs,
-                "resources": {k: v["init_params"] for k, v in self.resources.items()},
-                "utilities": {k: v["info"] for k, v in self.utilities.items()},
-            }
-
-            # Insert the data into the table
-            await db_manager.insert_data(
-                "sdkcontext", {"type": "sdk_context", "data": config_data, "create_date": datetime.now()}
+        db_manager = self.get_utility("db_manager")
+        table_exists = await db_manager.get_table_definition("sdkcontext")
+        if table_exists == None:
+            # Create a table to store configuration and resource details as JSON
+            await db_manager.create_table(
+                "sdkcontext", {"type": "String", "data": "JSON", "create_date": "DateTime"}
             )
+
+        # Prepare the data to be inserted
+        sdk_context_data = {
+            "default_config": self.default_config,
+            "agent_configs": self.agent_configs,
+            "resources": {k: v["init_params"] for k, v in self.resources.items()},
+            "utilities": {k: v["info"] for k, v in self.utilities.items()},
+        }
+
+        # Insert the data into the table
+        await db_manager.insert_data(
+            "sdkcontext", {"type": "sdk_context", "data": sdk_context_data, "create_date": datetime.now()}
+        )
 
     async def fetch_data(self, table_name: str, conditions: dict, order_by: str = "create_date", limit: int = 1):
         """
@@ -368,33 +391,32 @@ class SDKContext:
             query += f" LIMIT {limit}"
 
         print(query)
-        result = await self.db_manager.execute(sql_text(query), conditions)
+        db_manager = self.get_utility("db_manager")
+        result = await db_manager.db.execute(sql_text(query), conditions)
         return result.fetchall()
 
     async def load_sdk_context_from_db(self):
         """
         Load the SDK context from the database and restore non-serializable objects.
         """
-        async for db in get_db():
-            self.db_manager = DatabaseManager(db)
+        # Fetch the configuration data from the database
+        config_record = await self.fetch_data("sdkcontext", {"type": "sdk_context"})
+        if config_record:
+            print(config_record)
+            state = json.loads(config_record[0][2])
 
-            # Fetch the configuration data from the database
-            config_record = await self.fetch_data("sdkcontext", {"type": "sdk_context"})
-            if config_record:
-                print(config_record)
-                state = json.loads(config_record[0][2])
-
-                self.__dict__.update(state)
-                self.default_config = state["default_config"]
-                self.agent_configs = state["agent_configs"]
-                self.resources = {
-                    k: {"init_params": v, "object": None} if isinstance(v, dict) else v
-                    for k, v in self.resources.items()
-                }
-                self.utilities = {}
-                await self.load_default_utility()
-                self.restore_non_serializable_objects()
-                return self
+            self.__dict__.update(state)
+            self.default_config = state["default_config"]
+            self.agent_configs = state["agent_configs"]
+            self.resources = {
+                k: {"init_params": v, "object": None} if isinstance(v, dict) else v
+                for k, v in self.resources.items()
+            }
+            self.utilities = {}
+            self.load_default_utility()
+            await self.load_db_manager()
+            self.restore_non_serializable_objects()
+            return self
 
     def set_attributes(self, id, **kwargs):
         """
@@ -465,19 +487,24 @@ class SDKContext:
             return None
         return utility["object"]
 
-    async def load_default_utility(self):
+    def load_default_utility(self):
         """
         Load the default utility function from the context.
 
         :return: The requested utility function.
         """
 
-        # if self.get_utility("text2sql_engine") is None:
-        #     engine = create_engine(db_url.replace("+aiosqlite", "").replace("+asyncpg", ""))
-        #     metadata = MetaData()
-        #     metadata.reflect(bind=engine)
-        #     self.add_utility(engine, utility_type="DBEngine", name="text2sql_engine")
-        #     self.add_utility(metadata, utility_type="MetaData", name="text2sql_metadata")
+        if self.get_utility("indexstore") is None:
+            indexstore = IndexStore()
+            self.add_utility(indexstore, 'IndexStore', 'indexstore')
+        
+        if self.get_utility("callback_manager") is None:
+            reasoning_callback = EventCallbackHandler()
+            callback_manager = CallbackManager(handlers=[reasoning_callback])
+            self.add_utility(reasoning_callback, 'EventCallbackHandler', 'reasoning_callback')
+            self.add_utility(callback_manager, 'CallbackManager', 'callback_manager')
+
+    async def load_db_manager(self):
         if self.get_utility("db_manager") is None:
             await initialize_db()
             async for db in get_db():
@@ -485,10 +512,3 @@ class SDKContext:
                 db_manager = DatabaseManager(db)
                 self.add_utility(db_manager, utility_type="DatabaseManager", name="db_manager")
                 break  # Exit after getting the first session
-
-    def load_callback_manager(self):
-        if self.get_utility("callback_manager") is None:
-            reasoning_callback = EventCallbackHandler()
-            callback_manager = CallbackManager(handlers=[reasoning_callback])
-            self.add_utility(reasoning_callback, 'EventCallbackHandler', 'reasoning_callback')
-            self.add_utility(callback_manager, 'CallbackManager', 'callback_manager')

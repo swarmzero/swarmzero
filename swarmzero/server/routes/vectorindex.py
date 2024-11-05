@@ -3,19 +3,16 @@ from typing import List
 
 from fastapi import APIRouter, HTTPException
 
-from swarmzero.tools.retriever.base_retrieve import IndexStore, RetrieverBase
+from swarmzero.tools.retriever.base_retrieve import RetrieverBase
 from swarmzero.tools.retriever.chroma_retrieve import ChromaRetriever
 from swarmzero.tools.retriever.pinecone_retrieve import PineconeRetriever
-
+from swarmzero.sdk_context import SDKContext
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Initialize the router and index store
-index_store = IndexStore.get_instance()
 
-
-def setup_vectorindex_routes(router: APIRouter):
+def setup_vectorindex_routes(router: APIRouter, sdk_context: SDKContext):
     @router.post("/create_index/")
     async def create_index(
         index_name: str,
@@ -24,6 +21,7 @@ def setup_vectorindex_routes(router: APIRouter):
         index_type=None,
     ):
         try:
+            index_store = sdk_context.get_utility("indexstore")
             if index_type is None or index_type == "basic":
                 retriever = RetrieverBase()
                 index, file_names = retriever.create_basic_index(file_path, folder_path)
@@ -54,6 +52,7 @@ def setup_vectorindex_routes(router: APIRouter):
     @router.post("/insert_documents/")
     async def insert_documents(index_name: str, file_path: List[str] = None, folder_path: str = None):
         try:
+            index_store = sdk_context.get_utility("indexstore")
             index = index_store.get_index(index_name)
             result, file_names = RetrieverBase().insert_documents(index, file_path, folder_path)
             index_store.update_index(index_name, index)
@@ -68,6 +67,7 @@ def setup_vectorindex_routes(router: APIRouter):
     @router.put("/update_documents/")
     async def update_documents(index_name: str, file_path: List[str] = None, folder_path: str = None):
         try:
+            index_store = sdk_context.get_utility("indexstore")
             index = index_store.get_index(index_name)
             result, file_names = RetrieverBase().update_documents(index, file_path, folder_path)
             index_store.update_index(index_name, index)
@@ -82,6 +82,7 @@ def setup_vectorindex_routes(router: APIRouter):
     @router.delete("/delete_documents/")
     async def delete_documents(index_name: str, file_path: List[str] = None, folder_path: str = None):
         try:
+            index_store = sdk_context.get_utility("indexstore")
             index = index_store.get_index(index_name)
             result, file_names = RetrieverBase().delete_documents(index, file_path, folder_path)
             index_store.delete_index(index_name)

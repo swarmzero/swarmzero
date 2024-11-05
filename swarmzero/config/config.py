@@ -1,7 +1,7 @@
 import logging
 import os
 
-import toml
+import yaml
 
 
 class Config:
@@ -19,7 +19,7 @@ class Config:
         """Loads the configuration file."""
         try:
             with open(self.config_path, "r") as f:
-                config_data = toml.load(f)
+                config_data = yaml.safe_load(f)
             return config_data
         except FileNotFoundError:
             raise FileNotFoundError(f"Config file not found: {self.config_path}")

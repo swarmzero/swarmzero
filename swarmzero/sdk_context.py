@@ -32,7 +32,7 @@ class SDKContext:
     This includes configuration settings, resources, and utilities.
     """
 
-    def __init__(self, config_path: Optional[str] = "./swarmzero_config_example.toml"):
+    def __init__(self, config_path: Optional[str] = "./swarmzero_config_example.yaml"):
         """
         Initialize the SDKContext with a path to a TOML configuration file.
 

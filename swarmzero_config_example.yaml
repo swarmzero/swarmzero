@@ -1,0 +1,28 @@
+model:
+  model: "gpt-4o"
+  enable_multi_modal: false
+  ollama_server_url: "http://localhost:11434"
+
+sample_prompts:
+  prompts:
+    - "What can you help me do?"
+    - "Which tools do you have access to?"
+    - "What are your capabilities?"
+
+environment:
+  type: "dev"
+
+timeout:
+  llm: 30
+
+# example of agent in a swarm
+target_agent_id:
+  model: "claude-3-5-sonnet-20240620"
+  timeout: 15
+  environment: "dev"
+  enable_multi_modal: true
+  ollama_server_url: "http://123.456.78.90:11434"
+  sample_prompts:
+    - "What can you help me do?"
+    - "Which tools do you have access to?"
+    - "What are your capabilities?"

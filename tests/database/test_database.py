@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, patch
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.ext.declarative import declarative_base
 
-from swarmzero.database.database import DatabaseManager
+from swarmzero.core.services.database import DatabaseManager
 
 Base = declarative_base()
 

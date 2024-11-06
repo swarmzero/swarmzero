@@ -1,10 +1,9 @@
-import json
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from swarmzero.agent import Agent
-from swarmzero.sdk_context import SDKContext
+from swarmzero.core.agent import Agent
+from swarmzero.core.sdk_context import SDKContext
 
 
 @pytest.fixture

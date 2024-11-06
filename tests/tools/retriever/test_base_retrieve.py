@@ -2,8 +2,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from swarmzero.sdk_context import SDKContext
-from swarmzero.tools.retriever.base_retrieve import IndexStore, RetrieverBase
+from swarmzero.core.sdk_context import SDKContext
+from swarmzero.core.services.retriever.base_retrieve import IndexStore, RetrieverBase
 
 
 @pytest.fixture

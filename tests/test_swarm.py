@@ -1,19 +1,17 @@
 import json
 import uuid
-from typing import List
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 from llama_index.core.agent import ReActAgent
-from llama_index.core.llms import ChatMessage, MessageRole
-from llama_index.core.tools import QueryEngineTool, ToolMetadata
+from llama_index.core.tools import ToolMetadata
 
-from swarmzero.agent import Agent
-from swarmzero.chat import ChatManager
 from swarmzero.config import Config
-from swarmzero.llms.llm import LLM
-from swarmzero.sdk_context import SDKContext
-from swarmzero.swarm import Swarm
+from swarmzero.core.agent import Agent
+from swarmzero.core.sdk_context import SDKContext
+from swarmzero.core.services.chat import ChatManager
+from swarmzero.core.services.llms.llm import LLM
+from swarmzero.core.swarm import Swarm
 
 
 @pytest.fixture

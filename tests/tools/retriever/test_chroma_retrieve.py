@@ -3,8 +3,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from swarmzero.sdk_context import SDKContext
-from swarmzero.tools.retriever.chroma_retrieve import ChromaRetriever
+from swarmzero.core.sdk_context import SDKContext
+from swarmzero.core.services.retriever.chroma_retrieve import ChromaRetriever
 
 
 @pytest.fixture

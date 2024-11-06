@@ -5,14 +5,14 @@ from fastapi import HTTPException
 from fastapi.routing import APIRouter
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from swarmzero.database.schemas import (
+from swarmzero.api.routes.database import setup_database_routes
+from swarmzero.core.services.database import (
     DataDelete,
     DataInsert,
     DataRead,
     DataUpdate,
     TableCreate,
 )
-from swarmzero.server.routes.database import setup_database_routes
 
 
 class TestDatabaseRoutes(unittest.IsolatedAsyncioTestCase):

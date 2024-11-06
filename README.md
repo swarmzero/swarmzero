@@ -105,7 +105,7 @@ To use a configuration file with your `Agent`, follow these steps:
    - The SDKContext allows you to manage configurations, resources, and utilities across your SwarmZero Agents more efficiently.
 
    ```python
-   from swarmzero.sdk_context import SDKContext
+   from swarmzero.core.sdk_context import SDKContext
 
    sdk_context = SDKContext(config_path="./swarmzero_config.toml")
    ```
@@ -238,9 +238,9 @@ if __name__ == "__main__":
 You can create a swarm of agents to collaborate on complex tasks. Here's an example of how to set up and use a swarm:
 
 ````python
-from swarmzero.swarm import Swarm
-from swarmzero.agent import Agent
-from swarmzero.sdk_context import SDKContext
+from swarmzero.core.swarm import Swarm
+from swarmzero.core.agent import Agent
+from swarmzero.core.sdk_context import SDKContext
 
 import asyncio
 
@@ -249,11 +249,11 @@ sdk_context = SDKContext(config_path="./swarmzero_config_example.toml")
 
 
 def save_report():
-    return "save_item_to_csv"
+  return "save_item_to_csv"
 
 
 def search_on_web():
-    return "search_on_web"
+  return "search_on_web"
 
 
 # Create individual agents
@@ -269,11 +269,11 @@ swarm = Swarm(name="Research Team", description="A swarm of agents that collabor
 
 
 async def chat_with_swarm():
-    return await swarm.chat("Can you analyze the following data: [1, 2, 3, 4, 5]")
+  return await swarm.chat("Can you analyze the following data: [1, 2, 3, 4, 5]")
 
 
 if __name__ == "__main__":
-    asyncio.run(chat_with_swarm())
+  asyncio.run(chat_with_swarm())
 ````
 
 ### Adding Retriever

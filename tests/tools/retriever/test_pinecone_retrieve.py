@@ -2,8 +2,8 @@ import os
 import unittest
 from unittest.mock import ANY, MagicMock, patch
 
-from swarmzero.sdk_context import SDKContext  # Import SDKContext
-from swarmzero.tools.retriever.pinecone_retrieve import PineconeRetriever
+from swarmzero.core.sdk_context import SDKContext  # Import SDKContext
+from swarmzero.core.services.retriever.pinecone_retrieve import PineconeRetriever
 
 
 class TestPineconeRetriever(unittest.TestCase):

@@ -1,11 +1,9 @@
-import os
-
 from dotenv import load_dotenv
 from llama_index.core import SQLDatabase
 from llama_index.core.query_engine import NLSQLTableQueryEngine
 from llama_index.core.settings import Settings
 
-from swarmzero.sdk_context import SDKContext
+from swarmzero.core.sdk_context import SDKContext
 
 load_dotenv()
 

@@ -6,18 +6,17 @@ from llama_index.agent.openai import OpenAIAgent  # type: ignore
 from llama_index.core.agent.runner.base import AgentRunner
 from llama_index.core.objects import ObjectIndex
 from llama_index.llms.anthropic import Anthropic
-from llama_index.llms.gemini import Gemini
 from llama_index.llms.mistralai import MistralAI
 from llama_index.llms.ollama import Ollama
 from llama_index.llms.openai import OpenAI
 from llama_index.multi_modal_llms.openai import OpenAIMultiModal
 
-from swarmzero.llms.claude import ClaudeLLM
-from swarmzero.llms.gemini import GeminiLLM
-from swarmzero.llms.mistral import MistralLLM
-from swarmzero.llms.ollama import OllamaLLM
-from swarmzero.llms.openai import OpenAILLM, OpenAIMultiModalLLM
-from swarmzero.sdk_context import SDKContext
+from swarmzero.core.sdk_context import SDKContext
+from swarmzero.core.services.llms.claude import ClaudeLLM
+from swarmzero.core.services.llms.gemini import GeminiLLM
+from swarmzero.core.services.llms.mistral import MistralLLM
+from swarmzero.core.services.llms.ollama import OllamaLLM
+from swarmzero.core.services.llms.openai import OpenAILLM, OpenAIMultiModalLLM
 
 
 @pytest.fixture

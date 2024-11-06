@@ -1,9 +1,9 @@
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from sqlalchemy import Boolean, Column, Integer, MetaData, String, Table, create_engine
 
-from swarmzero.sdk_context import SDKContext
+from swarmzero.core.sdk_context import SDKContext
 from swarmzero.tools.agent_db.schema import get_db_schemas
 
 

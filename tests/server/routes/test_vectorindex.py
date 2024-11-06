@@ -5,7 +5,7 @@ import pytest
 from fastapi import APIRouter, FastAPI
 from httpx import AsyncClient
 
-from swarmzero.server.routes.vectorindex import setup_vectorindex_routes
+from swarmzero.api.routes.vectorindex import setup_vectorindex_routes
 
 
 @pytest.fixture(scope="module")

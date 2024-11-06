@@ -6,10 +6,10 @@ import pytest
 from fastapi import APIRouter, FastAPI
 from httpx import AsyncClient
 
-from swarmzero.filestore import FileStore
-from swarmzero.sdk_context import SDKContext
-from swarmzero.server.routes.files import setup_files_routes
-from swarmzero.tools.retriever.base_retrieve import IndexStore, RetrieverBase
+from swarmzero.api.routes.files import setup_files_routes
+from swarmzero.core.sdk_context import SDKContext
+from swarmzero.core.services.filestore import FileStore
+from swarmzero.core.services.retriever.base_retrieve import IndexStore, RetrieverBase
 
 BASE_DIR = "test_files"
 

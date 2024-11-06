@@ -1,11 +1,11 @@
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from llama_index.agent.openai import OpenAIAgent  # type: ignore
 from llama_index.core.llms import ChatMessage, MessageRole
 from llama_index.multi_modal_llms.openai import OpenAIMultiModal  # type: ignore
 
-from swarmzero.chat import ChatManager
+from swarmzero.core.services.chat import ChatManager
 
 
 class MockAgent:

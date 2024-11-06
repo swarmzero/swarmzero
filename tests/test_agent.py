@@ -1,18 +1,14 @@
 import json
 import os
 import signal
-from io import BytesIO
-from unittest.mock import ANY, AsyncMock, MagicMock, call, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from fastapi import UploadFile
 from llama_index.core.agent.runner.base import AgentRunner
-from llama_index.core.llms import ChatMessage, MessageRole
-from starlette.datastructures import Headers
 
-from swarmzero.agent import Agent
-from swarmzero.chat import ChatManager
-from swarmzero.tools.retriever.base_retrieve import IndexStore
+from swarmzero.core.agent import Agent
+from swarmzero.core.services.chat import ChatManager
+from swarmzero.core.services.retriever.base_retrieve import IndexStore
 
 
 @pytest.fixture

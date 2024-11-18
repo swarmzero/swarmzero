@@ -21,6 +21,7 @@ from llama_index.core.objects import ObjectIndex
 from llama_index.core.tools import QueryEngineTool, ToolMetadata
 
 from swarmzero.chat import ChatManager
+from swarmzero.llms import AzureOpenAILLM
 from swarmzero.llms.claude import ClaudeLLM
 from swarmzero.llms.llm import LLM
 from swarmzero.llms.mistral import MistralLLM
@@ -443,6 +444,8 @@ class Agent:
                 agent_class = OpenAIMultiModalLLM
             elif "gpt" in model:
                 agent_class = OpenAILLM
+            elif "azure/" in model:
+                agent_class = AzureOpenAILLM
             elif "claude" in model:
                 agent_class = ClaudeLLM
             elif "llama" in model:

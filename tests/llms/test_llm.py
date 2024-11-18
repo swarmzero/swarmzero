@@ -10,8 +10,10 @@ from llama_index.llms.gemini import Gemini
 from llama_index.llms.mistralai import MistralAI
 from llama_index.llms.ollama import Ollama
 from llama_index.llms.openai import OpenAI
+from llama_index.llms.azure_openai import AzureOpenAI
 from llama_index.multi_modal_llms.openai import OpenAIMultiModal
 
+from swarmzero.llms import AzureOpenAILLM
 from swarmzero.llms.claude import ClaudeLLM
 from swarmzero.llms.gemini import GeminiLLM
 from swarmzero.llms.mistral import MistralLLM
@@ -73,6 +75,20 @@ def test_openai_llm_initialization(tools, instruction, sdk_context):
     assert openai_llm.tools == tools
     assert instruction in openai_llm.system_prompt
 
+
+def test_azureopenai_llm_initialization(tools, instruction, sdk_context):
+    azureopenai = AzureOpenAILLM(AzureOpenAI(
+        azure_deployment="gpt-3.5-turbo",
+        azure_endpoint="https://YOUR_RESOURCE_NAME.openai.azure.com/"
+    ), tools, instruction, sdk_context=sdk_context)
+    print(f"Agent: {azureopenai.agent}")
+    print(f"Tools: {azureopenai.tools}")
+    print(f"System Prompt: {azureopenai.system_prompt}")
+
+    assert azureopenai.agent is not None
+    assert isinstance(azureopenai.agent, AgentRunner)
+    assert azureopenai.tools == tools
+    assert instruction in azureopenai.system_prompt
 
 def test_openai_multimodal_llm_initialization(tools, instruction, sdk_context):
     openai_llm = OpenAIMultiModalLLM(OpenAIMultiModal(model="gpt-4"), tools, instruction, sdk_context=sdk_context)

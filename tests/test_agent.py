@@ -20,6 +20,7 @@ def agent():
     with (
         patch.object(IndexStore, "get_instance", return_value=IndexStore()),
         patch("swarmzero.agent.OpenAILLM"),
+        patch("swarmzero.agent.AzureOpenAILLM"),
         patch("swarmzero.agent.ClaudeLLM"),
         patch("swarmzero.agent.MistralLLM"),
         patch("swarmzero.agent.OllamaLLM"),

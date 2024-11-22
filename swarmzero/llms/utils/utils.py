@@ -15,6 +15,7 @@ from llama_index.llms.gemini import Gemini
 from llama_index.llms.mistralai import MistralAI
 from llama_index.llms.ollama import Ollama
 from llama_index.llms.openai import OpenAI
+from llama_index.llms.azure_openai import AzureOpenAI
 from llama_index.multi_modal_llms.openai import OpenAIMultiModal
 
 from swarmzero.config import Config
@@ -22,7 +23,7 @@ from swarmzero.llms.claude import ClaudeLLM
 from swarmzero.llms.llm import LLM
 from swarmzero.llms.mistral import MistralLLM
 from swarmzero.llms.ollama import OllamaLLM
-from swarmzero.llms.openai import OpenAILLM, OpenAIMultiModalLLM
+from swarmzero.llms.openai import OpenAILLM, OpenAIMultiModalLLM, AzureOpenAILLM
 
 load_dotenv()
 
@@ -42,6 +43,30 @@ def _create_llm(llm_type: str, config: Config):
             return OpenAIMultiModal(model, request_timeout=timeout, max_new_tokens=300)
         elif "gpt" in model:
             return OpenAI(model=model, request_timeout=timeout)
+    elif llm_type == "AzureOpenAI":
+        api_key = os.getenv("AZURE_OPENAI_API_KEY")
+        if not api_key:
+            logger.error("AZURE_OPENAI_API_KEY is missing")
+            raise ValueError("AZURE_OPENAI_API_KEY is required for Azure Open AI")
+        azure_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+        if not azure_endpoint:
+            logger.error("AZURE_OPENAI_ENDPOINT is missing")
+            raise ValueError("AZURE_OPENAI_ENDPOINT is required for Azure Open AI")
+        api_version = os.getenv("AZURE_OPENAI_API_VERSION")
+        if not api_version:
+            logger.error("AZURE_OPENAI_API_VERSION is missing")
+            raise ValueError("AZURE_OPENAI_API_VERSION is required for Azure Open AI")
+        if model is None:
+            logger.error("model is missing")
+            raise ValueError("model is required for Azure Open AI")
+        azure_deployment = model.replace("azure/","")
+        return AzureOpenAI(
+            azure_deployment=azure_deployment,
+            azure_endpoint=azure_endpoint,
+            api_key=api_key,
+            api_version=api_version,
+            timeout=timeout
+        )
     elif llm_type == "Anthropic":
         api_key = os.getenv("ANTHROPIC_API_KEY")
         if not api_key:
@@ -72,6 +97,8 @@ def _create_llm(llm_type: str, config: Config):
 def llm_from_wrapper(llm_wrapper: LLM, config: Config):
     if isinstance(llm_wrapper, OpenAILLM):
         return _create_llm("OpenAI", config)
+    if isinstance(llm_wrapper, AzureOpenAILLM):
+        return _create_llm("AzureOpenAI", config)
     elif isinstance(llm_wrapper, ClaudeLLM):
         return _create_llm("Anthropic", config)
     elif isinstance(llm_wrapper, OllamaLLM):
@@ -87,9 +114,12 @@ def llm_from_wrapper(llm_wrapper: LLM, config: Config):
 def llm_from_config(config: Config):
     model = config.get("model")
 
-    if "gpt" in model:
+    if "gpt" in model and "azure/" not in model:
         logger.info("OpenAI model selected")
         return _create_llm("OpenAI", config)
+    elif "azure/" in model:
+        logger.info("AzureOpenAI model selected")
+        return _create_llm("AzureOpenAI", config)
     elif "claude" in model:
         logger.info("Claude model selected")
         return _create_llm("Anthropic", config)
@@ -108,12 +138,15 @@ def llm_from_config_without_agent(config: Config, sdk_context: SDKContext):
     model = config.get("model")
     enable_multi_modal = config.get("enable_multi_modal")
 
-    if "gpt" in model:
+    if "gpt" in model and "azure/" not in model:
         if model.startswith("gpt-4") and enable_multi_modal is True:
             logger.info("OpenAIMultiModalLLM selected")
             return OpenAIMultiModalLLM(llm=llm_from_config(config), sdk_context=sdk_context)
         logger.info("OpenAILLM selected")
         return OpenAILLM(llm=llm_from_config(config), sdk_context=sdk_context)
+    elif "azure/" in model:
+        logger.info("AzureOpenAILLM model selected")
+        return AzureOpenAILLM(llm=llm_from_config(config), sdk_context=sdk_context)
     elif "claude" in model:
         logger.info("ClaudeLLM selected")
         return ClaudeLLM(llm=llm_from_config(config), sdk_context=sdk_context)

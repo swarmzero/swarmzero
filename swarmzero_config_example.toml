@@ -1,4 +1,5 @@
 [model]
+# for Azure Open AI use azure/<azure-deployment-name>
 model = "gpt-4o"
 enable_multi_modal = false
 ollama_server_url = "http://localhost:11434"

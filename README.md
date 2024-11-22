@@ -17,7 +17,7 @@ This library provides you with an easy way to create and run AI Agents and Swarm
 
 
 ## Supported Large Language Models (LLMs)
-- OpenAI
+- OpenAI/Azure OpenAI
   - o1-preview
   - o1-mini 
   - gpt-4o

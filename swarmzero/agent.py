@@ -193,17 +193,29 @@ class Agent:
             await self.__cleanup()
 
     def run(self):
+        """Run the agent with proper event loop handling."""
         try:
-            loop = asyncio.get_event_loop()
+            # Get the current event loop
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                # If no loop exists, create a new one
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+
+            # If we're already in an async context
             if loop.is_running():
-                logging.warning("Event loop already running, creating a new one.")
-                new_loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(new_loop)
-                new_loop.run_until_complete(self.run_server())
+                # Create a task in the existing loop
+                loop.create_task(self.run_server())
+                self.logger.info("Agent server started in existing event loop")
             else:
+                # If no loop is running, run until complete
                 loop.run_until_complete(self.run_server())
+                self.logger.info("Agent server started in new event loop")
+
         except Exception as e:
-            logging.error(f"An error occurred in the main event loop: {e}", exc_info=True)
+            self.logger.error(f"Failed to start agent server: {e}")
+            raise
 
     async def chat(
         self,
@@ -276,7 +288,7 @@ class Agent:
         return StreamingResponse(
             inject_additional_attributes(
                 stream_response, {"user_id": user_id}
-            ),  ##Check traceability in langtrace maybe broken?
+            ),  # Check traceability in langtrace maybe broken?
             media_type="text/event-stream",
         )
 

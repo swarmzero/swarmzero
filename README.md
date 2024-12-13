@@ -15,49 +15,14 @@
 
 This library provides you with an easy way to create and run AI Agents and Swarms of Agents.
 
-
-## Supported Large Language Models (LLMs)
-- OpenAI/Azure OpenAI
-  - o1-preview
-  - o1-mini 
-  - gpt-4o
-  - gpt-4o-mini
-  - gpt-4-turbo
-  - gpt-4
-  - gpt-3.5-turbo
-  - gpt-3.5-turbo-instruct
-- Anthropic
-  - claude-3-5-sonnet-20240620 
-  - claude-3-opus-20240229
-  - claude-3-sonnet-20240229
-  - claude-3-haiku-20240307
-- MistralAI
-   - mistral-large-latest
-   - mistral-small-latest
-   - open-mixtral-8x22b
-   - codestral-latest
-- Gemini
-   - gemini-1.5-flash
-   - gemini-pro
-   - gemini-1.5-pro
-   - gemini-1.0-pro
-- Popular open source LLMs
-   - llama3.2
-   - llama3.1
-   - llava
-   - gemma2:2b
-   - gemma2
-   - gemma:7b
-   - gemma:2b
-   - gemma2:27b
-   - codegemma
-   - mistral-nemo
-   - deepseek-coder-v2
-   - phi3:mini
-   - phi3:medium
-   - command-r
-   - command-r-plus
-   - and any supported by [Ollama](https://ollama.com/library)
+Supported LLM Providers:
+- [OpenAI](https://platform.openai.com/docs/models/)
+- [Azure OpenAI](https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/models?tabs=python-secure%2Cglobal-standard%2Cstandard-chat-completions)
+- [Anthropic](https://docs.anthropic.com/en/docs/about-claude/models)
+- [MistralAI](https://docs.mistral.ai/getting-started/models/models_overview/)
+- [Gemini](https://ai.google.dev/gemini-api/docs/models/gemini)
+- [Nebius](https://docs.nebius.com/studio/inference/models)
+- [Ollama](https://ollama.com/library)
 
 ## Project Requirements
 

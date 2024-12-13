@@ -1,7 +1,6 @@
 from llama_index.agent.openai import OpenAIAgent  # type: ignore
 from llama_index.core.agent import ReActAgentWorker
 from llama_index.core.agent.react_multimodal.step import MultimodalReActAgentWorker
-from llama_index.core.settings import Settings
 
 from swarmzero.llms.llm import LLM
 from swarmzero.sdk_context import SDKContext

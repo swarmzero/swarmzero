@@ -25,6 +25,7 @@ from swarmzero.llms import AzureOpenAILLM
 from swarmzero.llms.claude import ClaudeLLM
 from swarmzero.llms.llm import LLM
 from swarmzero.llms.mistral import MistralLLM
+from swarmzero.llms.nebius import NebiuslLLM
 from swarmzero.llms.ollama import OllamaLLM
 from swarmzero.llms.openai import OpenAILLM, OpenAIMultiModalLLM
 from swarmzero.llms.utils import llm_from_config
@@ -464,6 +465,8 @@ class Agent:
                 agent_class = OllamaLLM
             elif "mixtral" in model or "mistral" in model or "codestral" in model:
                 agent_class = MistralLLM
+            elif "nebius" in model:
+                agent_class = NebiuslLLM
             else:
                 agent_class = OpenAILLM
 

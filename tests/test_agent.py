@@ -23,6 +23,7 @@ def agent():
         patch("swarmzero.agent.AzureOpenAILLM"),
         patch("swarmzero.agent.ClaudeLLM"),
         patch("swarmzero.agent.MistralLLM"),
+        patch("swarmzero.agent.NebiuslLLM"),
         patch("swarmzero.agent.OllamaLLM"),
         patch("swarmzero.agent.setup_routes"),
         patch("uvicorn.Server.serve", new_callable=MagicMock),

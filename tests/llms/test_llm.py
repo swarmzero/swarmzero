@@ -6,17 +6,19 @@ from llama_index.agent.openai import OpenAIAgent  # type: ignore
 from llama_index.core.agent.runner.base import AgentRunner
 from llama_index.core.objects import ObjectIndex
 from llama_index.llms.anthropic import Anthropic
+from llama_index.llms.azure_openai import AzureOpenAI
 from llama_index.llms.gemini import Gemini
 from llama_index.llms.mistralai import MistralAI
+from llama_index.llms.nebius import NebiusLLM as Nebius
 from llama_index.llms.ollama import Ollama
 from llama_index.llms.openai import OpenAI
-from llama_index.llms.azure_openai import AzureOpenAI
 from llama_index.multi_modal_llms.openai import OpenAIMultiModal
 
 from swarmzero.llms import AzureOpenAILLM
 from swarmzero.llms.claude import ClaudeLLM
 from swarmzero.llms.gemini import GeminiLLM
 from swarmzero.llms.mistral import MistralLLM
+from swarmzero.llms.nebius import NebiuslLLM
 from swarmzero.llms.ollama import OllamaLLM
 from swarmzero.llms.openai import OpenAILLM, OpenAIMultiModalLLM
 from swarmzero.sdk_context import SDKContext
@@ -77,10 +79,12 @@ def test_openai_llm_initialization(tools, instruction, sdk_context):
 
 
 def test_azureopenai_llm_initialization(tools, instruction, sdk_context):
-    azureopenai = AzureOpenAILLM(AzureOpenAI(
-        azure_deployment="gpt-3.5-turbo",
-        azure_endpoint="https://YOUR_RESOURCE_NAME.openai.azure.com/"
-    ), tools, instruction, sdk_context=sdk_context)
+    azureopenai = AzureOpenAILLM(
+        AzureOpenAI(azure_deployment="gpt-3.5-turbo", azure_endpoint="https://YOUR_RESOURCE_NAME.openai.azure.com/"),
+        tools,
+        instruction,
+        sdk_context=sdk_context,
+    )
     print(f"Agent: {azureopenai.agent}")
     print(f"Tools: {azureopenai.tools}")
     print(f"System Prompt: {azureopenai.system_prompt}")
@@ -89,6 +93,7 @@ def test_azureopenai_llm_initialization(tools, instruction, sdk_context):
     assert isinstance(azureopenai.agent, AgentRunner)
     assert azureopenai.tools == tools
     assert instruction in azureopenai.system_prompt
+
 
 def test_openai_multimodal_llm_initialization(tools, instruction, sdk_context):
     openai_llm = OpenAIMultiModalLLM(OpenAIMultiModal(model="gpt-4"), tools, instruction, sdk_context=sdk_context)
@@ -131,6 +136,14 @@ def test_gemini_llm_initialization(tools, instruction, sdk_context):
         assert isinstance(gemini_llm.agent, llama_index.core.agent.runner.base.AgentRunner)
         assert gemini_llm.tools == tools
         assert instruction in gemini_llm.system_prompt
+
+
+def test_nebius_llm_initialization(tools, instruction, sdk_context):
+    nebius_llm = NebiuslLLM(Nebius(model="nebius-7b"), tools, instruction, sdk_context=sdk_context)
+    assert nebius_llm.agent is not None
+    assert isinstance(nebius_llm.agent, llama_index.core.agent.runner.base.AgentRunner)
+    assert nebius_llm.tools == tools
+    assert instruction in nebius_llm.system_prompt
 
 
 def test_retrieval_openai_llm_initialization(empty_tools, instruction, tool_retriever, sdk_context):

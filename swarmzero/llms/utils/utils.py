@@ -11,19 +11,21 @@ if "LANGTRACE_API_KEY" in os.environ:
     langtrace.init(api_key=os.getenv("LANGTRACE_API_KEY"))
 
 from llama_index.llms.anthropic import Anthropic
+from llama_index.llms.azure_openai import AzureOpenAI
 from llama_index.llms.gemini import Gemini
 from llama_index.llms.mistralai import MistralAI
+from llama_index.llms.nebius import NebiusLLM as Nebius
 from llama_index.llms.ollama import Ollama
 from llama_index.llms.openai import OpenAI
-from llama_index.llms.azure_openai import AzureOpenAI
 from llama_index.multi_modal_llms.openai import OpenAIMultiModal
 
 from swarmzero.config import Config
 from swarmzero.llms.claude import ClaudeLLM
 from swarmzero.llms.llm import LLM
 from swarmzero.llms.mistral import MistralLLM
+from swarmzero.llms.nebius import NebiuslLLM
 from swarmzero.llms.ollama import OllamaLLM
-from swarmzero.llms.openai import OpenAILLM, OpenAIMultiModalLLM, AzureOpenAILLM
+from swarmzero.llms.openai import AzureOpenAILLM, OpenAILLM, OpenAIMultiModalLLM
 
 load_dotenv()
 
@@ -59,14 +61,30 @@ def _create_llm(llm_type: str, config: Config):
         if model is None:
             logger.error("model is missing")
             raise ValueError("model is required for Azure Open AI")
-        azure_deployment = model.replace("azure/","")
+        azure_deployment = model.replace("azure/", "")
         return AzureOpenAI(
             azure_deployment=azure_deployment,
             azure_endpoint=azure_endpoint,
             api_key=api_key,
             api_version=api_version,
-            timeout=timeout
+            timeout=timeout,
         )
+    elif llm_type == "Nebius":
+        api_key = os.getenv("NEBIUS_API_KEY")
+        api_base = os.getenv("NEBIUS_API_BASE")
+        model = os.getenv("NEBIUS_MODEL")
+
+        if not api_key:
+            logger.error("NEBIUS_API_KEY is missing")
+            raise ValueError("NEBIUS_API_KEY is required for Nebius models")
+        if not api_base:
+            logger.error("NEBIUS_API_BASE is missing")
+            raise ValueError("NEBIUS_API_BASE is required for Nebius models")
+        if not model:
+            logger.error("NEBIUS_MODEL is missing")
+            raise ValueError("NEBIUS_MODEL is required for Nebius models")
+
+        return Nebius(model=model, api_key=api_key, api_base=api_base)
     elif llm_type == "Anthropic":
         api_key = os.getenv("ANTHROPIC_API_KEY")
         if not api_key:
@@ -105,6 +123,8 @@ def llm_from_wrapper(llm_wrapper: LLM, config: Config):
         return _create_llm("Ollama", config)
     elif isinstance(llm_wrapper, MistralLLM):
         return _create_llm("Mistral", config)
+    elif isinstance(llm_wrapper, NebiuslLLM):
+        return _create_llm("Nebius", config)
     else:
         logger.error("Unsupported LLM wrapper type")
         raise ValueError("Unsupported LLM wrapper type")
@@ -129,6 +149,9 @@ def llm_from_config(config: Config):
     elif any(keyword in model for keyword in ["mixtral", "mistral", "codestral"]):
         logger.info("Mistral model selected")
         return _create_llm("Mistral", config)
+    elif "nebius" in model:
+        logger.info("Nebius model selected")
+        return _create_llm("Nebius", config)
     else:
         logger.info("Default OpenAI model selected")
         return _create_llm("OpenAI", config)
@@ -156,6 +179,9 @@ def llm_from_config_without_agent(config: Config, sdk_context: SDKContext):
     elif any(keyword in model for keyword in ["mixtral", "mistral", "codestral"]):
         logger.info("MistralLLM selected")
         return MistralLLM(llm=llm_from_config(config), sdk_context=sdk_context)
+    elif "nebius" in model:
+        logger.info("NebiuslLLM selected")
+        return NebiuslLLM(llm=llm_from_config(config), sdk_context=sdk_context)
     else:
         logger.info("Default OpenAILLM selected")
         return OpenAILLM(llm=llm_from_config(config), sdk_context=sdk_context)

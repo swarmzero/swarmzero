@@ -1,8 +1,9 @@
 from .claude import ClaudeLLM
 from .gemini import GeminiLLM
 from .mistral import MistralLLM
+from .nebius import NebiuslLLM
 from .ollama import OllamaLLM
-from .openai import OpenAILLM, OpenAIMultiModalLLM, AzureOpenAILLM
+from .openai import AzureOpenAILLM, OpenAILLM, OpenAIMultiModalLLM
 
 __all__ = [
     "OpenAILLM",
@@ -12,4 +13,5 @@ __all__ = [
     "MistralLLM",
     "OllamaLLM",
     "GeminiLLM",
+    "NebiuslLLM",
 ]

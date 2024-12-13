@@ -1,5 +1,4 @@
 from llama_index.core.agent import ReActAgentWorker
-from llama_index.core.settings import Settings
 
 from swarmzero.llms.llm import LLM
 from swarmzero.sdk_context import SDKContext

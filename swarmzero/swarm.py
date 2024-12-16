@@ -6,6 +6,7 @@ from typing import Any, Callable, Dict, List, Optional
 
 from dotenv import load_dotenv
 from fastapi import UploadFile
+import openlit
 from fastapi.responses import StreamingResponse
 from langtrace_python_sdk import inject_additional_attributes
 from llama_index.core.agent import AgentRunner, ReActAgent

@@ -33,15 +33,10 @@ from swarmzero.sdk_context import SDKContext
 from swarmzero.server.models import ToolInstallRequest
 from swarmzero.server.routes import files, setup_routes
 from swarmzero.server.routes.files import insert_files_to_index
-from swarmzero.tools.retriever.base_retrieve import (
-    IndexStore,
-    RetrieverBase,
-    index_base_dir,
-    supported_exts,
-)
+from swarmzero.tools.retriever.base_retrieve import RetrieverBase, supported_exts
 from swarmzero.tools.retriever.chroma_retrieve import ChromaRetriever
 from swarmzero.tools.retriever.pinecone_retrieve import PineconeRetriever
-from swarmzero.utils import tools_from_funcs
+from swarmzero.utils import tools_from_funcs, IndexStore, index_base_dir
 
 load_dotenv()
 
@@ -103,7 +98,7 @@ class Agent:
 
         self.logger = logging.getLogger()
         self.logger.setLevel(self.__config.get("log"))
-
+        self.sdk_context.load_default_utility()
         self._check_optional_dependencies()
         self.__setup()
 
@@ -111,12 +106,11 @@ class Agent:
         [self.sdk_context.add_resource(func, resource_type="tool") for func in self.functions]
 
         self.__utilities_loaded = False
-        self.sdk_context.load_callback_manager()
 
     async def _ensure_utilities_loaded(self):
         """Load utilities if they are not already loaded."""
         if not self.__utilities_loaded and self.__chat_only_mode:
-            await self.sdk_context.load_default_utility()
+            await self.sdk_context.load_db_manager()
             self.__utilities_loaded = True
 
     def _check_optional_dependencies(self):
@@ -226,6 +220,7 @@ class Agent:
         files: Optional[List[UploadFile]] = [],
     ):
         await self._ensure_utilities_loaded()
+        await self.sdk_context.save_sdk_context_to_db()
         db_manager = self.sdk_context.get_utility("db_manager")
 
         chat_manager = ChatManager(self.__agent, user_id=user_id, session_id=session_id)
@@ -263,6 +258,7 @@ class Agent:
         files: Optional[List[UploadFile]] = [],
     ) -> StreamingResponse:
         await self._ensure_utilities_loaded()
+        await self.sdk_context.save_sdk_context_to_db()
         db_manager = self.sdk_context.get_utility("db_manager")
 
         chat_manager = ChatManager(self.__agent, user_id=user_id, session_id=session_id)
@@ -338,7 +334,7 @@ class Agent:
         if is_index_dir_not_empty and self.load_index_file:
             self.index_store = IndexStore.load_from_file()
         else:
-            self.index_store = IndexStore.get_instance()
+            self.index_store = self.sdk_context.get_utility("indexstore")
 
         if is_base_dir_not_empty and self.retrieve:
             self.add_batch_indexes()
@@ -374,7 +370,7 @@ class Agent:
                 index, file_names = pinecone_retriever.create_pod_index()
             self.index_store.add_index(pinecone_retriever.name, index, file_names)
 
-            self.index_store.save_to_file()
+        self.index_store.save_to_file()
 
     def get_tools(self):
 
@@ -387,8 +383,8 @@ class Agent:
         tools = self.get_tools()
         tool_retriever = None
 
-        if self.load_index_file or self.retrieve or len(self.index_store.list_indexes()) > 0:
-            index_store = IndexStore.get_instance()
+        if len(self.index_store.list_indexes()) > 0:
+            index_store = self.index_store
             query_engine_tools = []
             for index_name in index_store.get_all_index_names():
                 index_files = index_store.get_index_files(index_name)

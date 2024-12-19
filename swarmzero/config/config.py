@@ -1,7 +1,7 @@
 import logging
 import os
 
-import yaml
+import toml
 
 
 class Config:
@@ -19,7 +19,7 @@ class Config:
         """Loads the configuration file."""
         try:
             with open(self.config_path, "r") as f:
-                config_data = yaml.safe_load(f)
+                config_data = toml.load(f)
             return config_data
         except FileNotFoundError:
             raise FileNotFoundError(f"Config file not found: {self.config_path}")
@@ -38,7 +38,7 @@ class Config:
     def save_config(self):
         """Saves the current configuration state to disk."""
         with open(self.config_path, "w") as f:
-            yaml.dump(self.config, f)
+            toml.dump(self.config, f)
 
     def get_log_level(self):
         SWARMZERO_LOG_LEVEL = os.getenv("SWARMZERO_LOG_LEVEL", "INFO").upper()

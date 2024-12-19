@@ -34,7 +34,7 @@ def agent():
         test_agent = Agent(
             name="TestAgent",
             functions=[lambda x: x],
-            config_path="./swarmzero_config_test.yaml",
+            config_path="./swarmzero_config_test.toml",
             host="0.0.0.0",
             port=8000,
             instruction="Test instruction",
@@ -44,24 +44,24 @@ def agent():
             retrieval_tool="basic",
             load_index_file=False,
         )
-        
+
         # Mock the SDK context and database manager
         mock_db_manager = MagicMock()
         mock_db_manager.get_table_definition = AsyncMock(return_value=True)
         mock_db_manager.create_table = AsyncMock()
         mock_db_manager.insert_data = AsyncMock()
-        
+
         test_agent.sdk_context = MagicMock()
         test_agent.sdk_context.get_utility.return_value = mock_db_manager
         test_agent.sdk_context.save_sdk_context_to_db = AsyncMock()
-        
+
         return test_agent
 
 
 @pytest.mark.asyncio
 async def test_agent_initialization(agent):
     assert agent.name == "TestAgent"
-    assert agent.config_path == "./swarmzero_config_test.yaml"
+    assert agent.config_path == "./swarmzero_config_test.toml"
     assert agent.instruction == "Test instruction"
     assert agent.role == "leader"
     assert agent.retrieve is True

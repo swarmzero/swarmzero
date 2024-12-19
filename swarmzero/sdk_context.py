@@ -15,7 +15,8 @@ from swarmzero.database.database import (
     initialize_db,
     setup_chats_table,
 )
-from swarmzero.utils import EventCallbackHandler,IndexStore
+from swarmzero.utils import EventCallbackHandler, IndexStore
+
 
 class SDKContext:
 
@@ -32,11 +33,11 @@ class SDKContext:
     This includes configuration settings, resources, and utilities.
     """
 
-    def __init__(self, config_path: Optional[str] = "./swarmzero_config_example.yaml"):
+    def __init__(self, config_path: Optional[str] = "./swarmzero_config_example.toml"):
         """
-        Initialize the SDKContext with a path to a YAML configuration file.
+        Initialize the SDKContext with a path to a TOML configuration file.
 
-        :param config_path: Path to the YAML configuration file.
+        :param config_path: Path to the TOML configuration file.
         """
         self.config = Config(config_path)
         self.default_config = self.load_default_config()
@@ -299,11 +300,10 @@ class SDKContext:
         for name, resource in self.resources.items():
             if isinstance(resource, dict):
                 params = resource["init_params"]
-                
+
                 if params["type"] == "agent":
                     functions = [
-                        getattr(importlib.import_module(func["module"]), func["name"]) 
-                        for func in params["functions"]
+                        getattr(importlib.import_module(func["module"]), func["name"]) for func in params["functions"]
                     ]
 
                     resource_obj = Agent(
@@ -322,13 +322,12 @@ class SDKContext:
                         functions=functions,
                     )
                     self.resources[name]["object"] = resource_obj
-                    
+
                 elif params["type"] == "swarm":
                     functions = [
-                        getattr(importlib.import_module(func["module"]), func["name"]) 
-                        for func in params["functions"]
+                        getattr(importlib.import_module(func["module"]), func["name"]) for func in params["functions"]
                     ]
-                    
+
                     # Get the agent objects that belong to this swarm
                     agents = []
                     for agent_id in params["agents"]:
@@ -343,7 +342,7 @@ class SDKContext:
                         functions=functions,
                         agents=agents,
                         swarm_id=params["id"],
-                        sdk_context=self
+                        sdk_context=self,
                     )
                     self.resources[name]["object"] = resource_obj
 
@@ -355,9 +354,7 @@ class SDKContext:
         table_exists = await db_manager.get_table_definition("sdkcontext")
         if table_exists == None:
             # Create a table to store configuration and resource details as JSON
-            await db_manager.create_table(
-                "sdkcontext", {"type": "String", "data": "JSON", "create_date": "DateTime"}
-            )
+            await db_manager.create_table("sdkcontext", {"type": "String", "data": "JSON", "create_date": "DateTime"})
 
         # Prepare the data to be inserted
         sdk_context_data = {
@@ -409,8 +406,7 @@ class SDKContext:
             self.default_config = state["default_config"]
             self.agent_configs = state["agent_configs"]
             self.resources = {
-                k: {"init_params": v, "object": None} if isinstance(v, dict) else v
-                for k, v in self.resources.items()
+                k: {"init_params": v, "object": None} if isinstance(v, dict) else v for k, v in self.resources.items()
             }
             self.utilities = {}
             self.load_default_utility()
@@ -497,7 +493,7 @@ class SDKContext:
         if self.get_utility("indexstore") is None:
             indexstore = IndexStore()
             self.add_utility(indexstore, 'IndexStore', 'indexstore')
-        
+
         if self.get_utility("callback_manager") is None:
             reasoning_callback = EventCallbackHandler()
             callback_manager = CallbackManager(handlers=[reasoning_callback])

@@ -5,7 +5,12 @@ from dotenv import load_dotenv
 
 from swarmzero.sdk_context import SDKContext
 
-if "LANGTRACE_API_KEY" in os.environ:
+if "OTEL_EXPORTER_OTLP_ENDPOINT" in os.environ:
+    import openlit
+
+    openlit.init()
+
+elif "LANGTRACE_API_KEY" in os.environ:
     from langtrace_python_sdk import langtrace  # type: ignore # noqa
 
     langtrace.init(api_key=os.getenv("LANGTRACE_API_KEY"))

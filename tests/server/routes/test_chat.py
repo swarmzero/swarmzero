@@ -158,6 +158,7 @@ async def test_chat_with_image(client, agent):
             ['test.txt', 'test.jpg'],  # files
             ANY,  # event_handler
             stream_mode=False,  # stream_mode parameter
+            verbose=False,  # verbose parameter
         )
 
 

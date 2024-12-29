@@ -78,6 +78,7 @@ def setup_chat_routes(router: APIRouter, id, sdk_context: SDKContext):
         session_id: str = Form(...),
         chat_data: str = Form(...),
         files: List[UploadFile] = File([]),
+        verbose: bool = Form(False),
         db: AsyncSession = Depends(get_db),
     ):
         try:
@@ -89,7 +90,7 @@ def setup_chat_routes(router: APIRouter, id, sdk_context: SDKContext):
             )
 
         llm_instance, enable_multi_modal = get_llm_instance(id, sdk_context)
-        callback_handler = sdk_context.get_utility("reasoning_callback")
+        callback_handler = sdk_context.get_utility("reasoning_callback") if verbose else None
 
         chat_manager = ChatManager(
             llm_instance, user_id=user_id, session_id=session_id, enable_multi_modal=enable_multi_modal
@@ -105,16 +106,23 @@ def setup_chat_routes(router: APIRouter, id, sdk_context: SDKContext):
         response = ""
         async for chunk in inject_additional_attributes(
             lambda: chat_manager.generate_response(
-                db_manager, last_message, stored_files, callback_handler, stream_mode=False
+                db_manager, last_message, stored_files, callback_handler, stream_mode=False, verbose=verbose
             ),
             {"user_id": user_id},
         ):
-            if isinstance(chunk, dict):
-                response += f"0:{json.dumps(chunk)}\n"
-            elif isinstance(chunk, list):
-                response += f"2:{json.dumps(chunk)}\n"
-            else:
-                response += f"1:{json.dumps(chunk)}\n"
+            try:
+                if verbose:
+                    if isinstance(chunk, dict):
+                        response += f"0:{json.dumps(chunk)}\n"
+                    elif isinstance(chunk, list):
+                        response += f"2:{json.dumps(chunk)}\n"
+                    else:
+                        response += f"1:{json.dumps(chunk)}\n"
+                else:
+                    if isinstance(chunk, str):
+                        response += chunk
+            except Exception as e:
+                logger.error(f"Error processing chunk: {e}")
 
         return response
 
@@ -125,6 +133,7 @@ def setup_chat_routes(router: APIRouter, id, sdk_context: SDKContext):
         session_id: str = Form(...),
         chat_data: str = Form(...),
         files: List[UploadFile] = File([]),
+        verbose: bool = Form(False),
         db: AsyncSession = Depends(get_db),
     ):
         try:
@@ -136,7 +145,7 @@ def setup_chat_routes(router: APIRouter, id, sdk_context: SDKContext):
             )
 
         llm_instance, enable_multi_modal = get_llm_instance(id, sdk_context)
-        callback_handler = sdk_context.get_utility("reasoning_callback")
+        callback_handler = sdk_context.get_utility("reasoning_callback") if verbose else None
 
         chat_manager = ChatManager(
             llm_instance, user_id=user_id, session_id=session_id, enable_multi_modal=enable_multi_modal
@@ -151,19 +160,22 @@ def setup_chat_routes(router: APIRouter, id, sdk_context: SDKContext):
 
         async def stream_response():
             async for chunk in chat_manager.generate_response(
-                db_manager, last_message, stored_files, callback_handler, stream_mode=True
+                db_manager, last_message, stored_files, callback_handler, stream_mode=True, verbose=verbose
             ):
                 try:
-                    if isinstance(chunk, dict):
-                        yield f"0:{json.dumps(chunk)}\n"
-                    elif isinstance(chunk, list):
-                        yield f"2:{json.dumps(chunk)}\n"
+                    if verbose:
+                        if isinstance(chunk, dict):
+                            yield f"0:{json.dumps(chunk)}\n"
+                        elif isinstance(chunk, list):
+                            yield f"2:{json.dumps(chunk)}\n"
+                        else:
+                            yield f"1:{json.dumps(chunk)}\n"
                     else:
-                        yield f"1:{json.dumps(chunk)}\n"
+                        if isinstance(chunk, str):
+                            yield f"data: {chunk}\n\n"
                 except Exception as e:
                     logger.error(f"Error processing chunk: {e}")
-                    # In case of error, try to send error message
-                    yield f"500:{json.dumps(str(e))}\n"
+                    yield f"data: Error: {str(e)}\n\n"
 
         return StreamingResponse(
             inject_additional_attributes(stream_response, {"user_id": user_id}), media_type="text/event-stream"

@@ -36,7 +36,7 @@ from swarmzero.server.routes.files import insert_files_to_index
 from swarmzero.tools.retriever.base_retrieve import RetrieverBase, supported_exts
 from swarmzero.tools.retriever.chroma_retrieve import ChromaRetriever
 from swarmzero.tools.retriever.pinecone_retrieve import PineconeRetriever
-from swarmzero.utils import tools_from_funcs, IndexStore, index_base_dir
+from swarmzero.utils import IndexStore, index_base_dir, tools_from_funcs
 
 load_dotenv()
 
@@ -218,6 +218,7 @@ class Agent:
         user_id="default_user",
         session_id="default_chat",
         files: Optional[List[UploadFile]] = [],
+        verbose: bool = False,
     ):
         await self._ensure_utilities_loaded()
         await self.sdk_context.save_sdk_context_to_db()
@@ -225,7 +226,7 @@ class Agent:
 
         chat_manager = ChatManager(self.__agent, user_id=user_id, session_id=session_id)
         last_message = ChatMessage(role=MessageRole.USER, content=prompt)
-        event_handler = self.sdk_context.get_utility("reasoning_callback")
+        event_handler = self.sdk_context.get_utility("reasoning_callback") if verbose else None
 
         stored_files = []
         if files and len(files) > 0:
@@ -234,17 +235,23 @@ class Agent:
         response = ""
         async for chunk in inject_additional_attributes(
             lambda: chat_manager.generate_response(
-                db_manager, last_message, stored_files, event_handler, stream_mode=False
+                db_manager, last_message, stored_files, event_handler, stream_mode=False, verbose=verbose
             ),
             {"user_id": user_id},
         ):
             try:
-                if isinstance(chunk, dict):
-                    response += f"0:{json.dumps(chunk)}\n"
-                elif isinstance(chunk, list):
-                    response += f"2:{json.dumps(chunk)}\n"
+                if verbose:
+                    # In verbose mode, keep the structured output
+                    if isinstance(chunk, dict):
+                        response += f"0:{json.dumps(chunk)}\n"
+                    elif isinstance(chunk, list):
+                        response += f"2:{json.dumps(chunk)}\n"
+                    else:
+                        response += f"1:{json.dumps(chunk)}\n"
                 else:
-                    response += f"1:{json.dumps(chunk)}\n"
+                    # In non-verbose mode, just concatenate the text chunks directly
+                    if isinstance(chunk, str):
+                        response += chunk
             except Exception as e:
                 logging.error(f"Error processing chunk: {e}")
 
@@ -256,6 +263,7 @@ class Agent:
         user_id="default_user",
         session_id="default_chat",
         files: Optional[List[UploadFile]] = [],
+        verbose: bool = False,
     ) -> StreamingResponse:
         await self._ensure_utilities_loaded()
         await self.sdk_context.save_sdk_context_to_db()
@@ -263,29 +271,33 @@ class Agent:
 
         chat_manager = ChatManager(self.__agent, user_id=user_id, session_id=session_id)
         last_message = ChatMessage(role=MessageRole.USER, content=prompt)
-        event_handler = self.sdk_context.get_utility("reasoning_callback")
+        event_handler = self.sdk_context.get_utility("reasoning_callback") if verbose else None
         stored_files = []
         if files and len(files) > 0:
             stored_files = await insert_files_to_index(files, self.id, self.sdk_context)
 
         async def stream_response():
             async for chunk in chat_manager.generate_response(
-                db_manager, last_message, stored_files, event_handler, stream_mode=True
+                db_manager, last_message, stored_files, event_handler, stream_mode=True, verbose=verbose
             ):
                 try:
-                    if isinstance(chunk, dict):
-                        yield f"0:{json.dumps(chunk)}\n"
-                    elif isinstance(chunk, list):
-                        yield f"2:{json.dumps(chunk)}\n"
+                    if verbose:
+                        # In verbose mode, keep the structured output
+                        if isinstance(chunk, dict):
+                            yield f"0:{json.dumps(chunk)}\n"
+                        elif isinstance(chunk, list):
+                            yield f"2:{json.dumps(chunk)}\n"
+                        else:
+                            yield f"1:{json.dumps(chunk)}\n"
                     else:
-                        yield f"1:{json.dumps(chunk)}\n"
+                        # In non-verbose mode, just yield the text directly
+                        if isinstance(chunk, str):
+                            yield f"data: {chunk}\n\n"
                 except Exception as e:
                     logging.error(f"Error processing chunk: {e}")
 
         return StreamingResponse(
-            inject_additional_attributes(
-                stream_response, {"user_id": user_id}
-            ),  # Check traceability in langtrace maybe broken?
+            inject_additional_attributes(stream_response, {"user_id": user_id}),
             media_type="text/event-stream",
         )
 

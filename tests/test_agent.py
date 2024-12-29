@@ -212,22 +212,23 @@ async def test_chat_stream_method(agent):
     mock_chat_manager = AsyncMock(spec=ChatManager)
 
     async def mock_generate_response(*args, **kwargs):
-        yield json.dumps("Test response")
-        yield json.dumps("END_OF_STREAM")
+        yield "Test response"
+        if kwargs.get('verbose', False):
+            yield "END_OF_STREAM"
 
     mock_chat_manager.generate_response = mock_generate_response
 
     with patch('swarmzero.agent.ChatManager', return_value=mock_chat_manager):
         response = await agent.chat_stream(prompt="Test prompt", user_id="test_user", session_id="test_session")
 
-        response_content = []
+        response_content = ""
         async for chunk in response.body_iterator:
-            if chunk.startswith("1:"):  # Message chunk
-                content = json.loads(chunk[2:])
-                if content != "END_OF_STREAM":
-                    response_content.append(content)
+            if isinstance(chunk, bytes):
+                chunk = chunk.decode()
+            if chunk.startswith("data: "):  # SSE format
+                response_content += chunk.replace("data: ", "").strip()
 
-        assert "".join(response_content) == json.dumps("Test response") + json.dumps("END_OF_STREAM")
+        assert response_content == "Test response"
 
 
 @pytest.mark.asyncio

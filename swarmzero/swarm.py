@@ -134,6 +134,7 @@ class Swarm:
         user_id="default_user",
         session_id="default_chat",
         files: Optional[List[UploadFile]] = [],
+        verbose: bool = False,
     ):
         await self._ensure_utilities_loaded()
         await self.sdk_context.save_sdk_context_to_db()
@@ -141,7 +142,7 @@ class Swarm:
 
         chat_manager = ChatManager(self.__swarm, user_id=user_id, session_id=session_id)
         last_message = ChatMessage(role=MessageRole.USER, content=prompt)
-        event_handler = self.sdk_context.get_utility("reasoning_callback")
+        event_handler = self.sdk_context.get_utility("reasoning_callback") if verbose else None
 
         stored_files = []
         if files and len(files) > 0:
@@ -150,17 +151,21 @@ class Swarm:
         response = ""
         async for chunk in inject_additional_attributes(
             lambda: chat_manager.generate_response(
-                db_manager, last_message, stored_files, event_handler, stream_mode=False
+                db_manager, last_message, stored_files, event_handler, stream_mode=False, verbose=verbose
             ),
             {"user_id": user_id},
         ):
             try:
-                if isinstance(chunk, dict):
-                    response += f"0:{json.dumps(chunk)}\n"
-                elif isinstance(chunk, list):
-                    response += f"2:{json.dumps(chunk)}\n"
+                if verbose:
+                    if isinstance(chunk, dict):
+                        response += f"0:{json.dumps(chunk)}\n"
+                    elif isinstance(chunk, list):
+                        response += f"2:{json.dumps(chunk)}\n"
+                    else:
+                        response += f"1:{json.dumps(chunk)}\n"
                 else:
-                    response += f"1:{json.dumps(chunk)}\n"
+                    if isinstance(chunk, str):
+                        response += chunk
             except Exception as e:
                 print(f"Error processing chunk: {e}")
 
@@ -172,6 +177,7 @@ class Swarm:
         user_id="default_user",
         session_id="default_chat",
         files: Optional[List[UploadFile]] = [],
+        verbose: bool = False,
     ) -> StreamingResponse:
         await self._ensure_utilities_loaded()
         await self.sdk_context.save_sdk_context_to_db()
@@ -179,24 +185,26 @@ class Swarm:
 
         chat_manager = ChatManager(self.__swarm, user_id=user_id, session_id=session_id)
         last_message = ChatMessage(role=MessageRole.USER, content=prompt)
-        event_handler = self.sdk_context.get_utility("reasoning_callback")
+        event_handler = self.sdk_context.get_utility("reasoning_callback") if verbose else None
         stored_files = []
         if files and len(files) > 0:
             stored_files = await insert_files_to_index(files, self.id, self.sdk_context)
 
         async def stream_response():
             async for chunk in chat_manager.generate_response(
-                db_manager, last_message, stored_files, event_handler, stream_mode=True
+                db_manager, last_message, stored_files, event_handler, stream_mode=True, verbose=verbose
             ):
-                if isinstance(chunk, dict):
-                    yield f"0:{json.dumps(chunk)}\n"
+                if verbose:
+                    if isinstance(chunk, dict):
+                        yield f"0:{json.dumps(chunk)}\n"
+                    else:
+                        yield f"1:{json.dumps(chunk)}\n"
                 else:
-                    yield f"1:{json.dumps(chunk)}\n"
+                    if isinstance(chunk, str):
+                        yield f"data: {chunk}\n\n"
 
         return StreamingResponse(
-            inject_additional_attributes(
-                stream_response, {"user_id": user_id}
-            ),  ##Check traceability in langtrace maybe broken?
+            inject_additional_attributes(stream_response, {"user_id": user_id}),
             media_type="text/event-stream",
         )
 

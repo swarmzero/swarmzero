@@ -20,13 +20,21 @@ file_store = FileStore(BASE_DIR)
 
 class ChatManager:
 
-    def __init__(self, llm: AgentRunner, user_id: str, session_id: str, enable_multi_modal: bool = False):
+    def __init__(
+        self,
+        llm: AgentRunner,
+        user_id: str,
+        session_id: str,
+        enable_multi_modal: bool = False,
+        enable_suggestions: bool = False,
+    ):
         self.allowed_image_extensions = {".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff"}
         self.llm = llm
         self.user_id = user_id
         self.session_id = session_id
         self.chat_store_key = f"{user_id}_{session_id}"
         self.enable_multi_modal = enable_multi_modal
+        self.enable_suggestions = enable_suggestions
         self.next_question_suggestion = NextQuestionSuggestion()
 
     def is_valid_image(self, file_path: str) -> bool:
@@ -91,12 +99,13 @@ class ChatManager:
         db_manager: Optional[DatabaseManager],
         last_message: ChatMessage,
         files: Optional[List[str]] = [],
-        event_handler: EventCallbackHandler = None,
+        event_handler: Optional[EventCallbackHandler] = None,
         stream_mode: bool = False,
+        verbose: bool = False,
     ) -> AsyncGenerator[str, None]:
         chat_history = []
-        collected_event_chunks = []
         collected_message_chunks = []
+        collected_event_chunks = []
 
         if db_manager is not None:
             chat_history = await self.get_messages(db_manager)
@@ -114,70 +123,38 @@ class ChatManager:
             )
 
             async for chunk in self._handle_multimodal_task(
-                last_message, chat_history, image_documents, event_handler, stream_mode
+                last_message, chat_history, image_documents, event_handler if verbose else None, stream_mode
             ):
-                if db_manager is not None and not stream_mode:
-                    if isinstance(chunk, dict):
-                        collected_event_chunks.append(chunk)
-                    else:
-                        if chunk != "END_OF_STREAM":
-                            await self.add_message(db_manager, MessageRole.ASSISTANT, chunk, collected_event_chunks)
-                            collected_event_chunks = []
-
-                if db_manager is not None and stream_mode:
-                    if isinstance(chunk, dict):
-                        collected_event_chunks.append(chunk)
-                    else:
-                        collected_message_chunks.append(chunk)
-                    if chunk == "END_OF_STREAM":
-                        await self.add_message(
-                            db_manager,
-                            MessageRole.ASSISTANT,
-                            ''.join(collected_message_chunks[:-1]),
-                            collected_event_chunks,
-                        )
-                        collected_event_chunks = []
-                        collected_message_chunks = []
-
-                yield chunk
-
-            question_data = await self.next_question_suggestion.suggest_next_questions(
-                chat_history, ''.join(collected_message_chunks[:-1]), self.llm
-            )
-            print(question_data)
-            yield question_data
+                if isinstance(chunk, str):
+                    collected_message_chunks.append(chunk)
+                    if chunk != "END_OF_STREAM" or verbose:
+                        yield chunk
+                elif verbose:
+                    collected_event_chunks.append(chunk)
+                    yield chunk
 
         else:
-            async for chunk in self._handle_task(last_message, chat_history, event_handler, stream_mode):
-                if db_manager is not None and not stream_mode:
-                    if isinstance(chunk, dict):
-                        collected_event_chunks.append(chunk)
-                    else:
-                        if chunk != "END_OF_STREAM":
-                            await self.add_message(db_manager, MessageRole.ASSISTANT, chunk, collected_event_chunks)
-                            collected_event_chunks = []
+            async for chunk in self._handle_task(
+                last_message, chat_history, event_handler if verbose else None, stream_mode
+            ):
+                if isinstance(chunk, str):
+                    collected_message_chunks.append(chunk)
+                    if chunk != "END_OF_STREAM" or verbose:
+                        yield chunk
+                elif verbose:
+                    collected_event_chunks.append(chunk)
+                    yield chunk
 
-                if db_manager is not None and stream_mode:
-                    if isinstance(chunk, dict):
-                        collected_event_chunks.append(chunk)
-                    else:
-                        collected_message_chunks.append(chunk)
-                    if chunk == "END_OF_STREAM":
-                        await self.add_message(
-                            db_manager,
-                            MessageRole.ASSISTANT,
-                            ''.join(collected_message_chunks[:-1]),
-                            collected_event_chunks,
-                        )
-                        collected_event_chunks = []
-                        collected_message_chunks = []
+        # Store the complete response in the database
+        if db_manager is not None:
+            complete_response = ''.join(collected_message_chunks)
+            await self.add_message(db_manager, MessageRole.ASSISTANT.value, complete_response, collected_event_chunks)
 
-                yield chunk
-
+        # Only generate suggestions if enabled
+        if self.enable_suggestions:
             question_data = await self.next_question_suggestion.suggest_next_questions(
-                chat_history, ''.join(collected_message_chunks[:-1]), self.llm
+                chat_history, ''.join(collected_message_chunks), self.llm
             )
-            print(question_data)
             yield question_data
 
     async def _handle_multimodal_task(
@@ -185,7 +162,7 @@ class ChatManager:
         last_message: ChatMessage,
         chat_history: List[ChatMessage],
         image_documents: List[ImageDocument],
-        event_handler: EventCallbackHandler,
+        event_handler: Optional[EventCallbackHandler],
         stream_mode: bool = False,
     ) -> AsyncGenerator[str, None]:
         self.llm.memory = ChatMemoryBuffer.from_defaults(chat_history=chat_history)
@@ -197,7 +174,7 @@ class ChatManager:
         self,
         last_message: ChatMessage,
         chat_history: List[ChatMessage],
-        event_handler: EventCallbackHandler,
+        event_handler: Optional[EventCallbackHandler],
         stream_mode: bool = False,
     ) -> AsyncGenerator[str, None]:
         task = self.llm.create_task(last_message.content, chat_history=chat_history)
@@ -205,7 +182,7 @@ class ChatManager:
             yield chunk
 
     async def _execute_task(
-        self, task_id: str, event_handler: EventCallbackHandler, stream_mode: bool = False
+        self, task_id: str, event_handler: Optional[EventCallbackHandler], stream_mode: bool = False
     ) -> AsyncGenerator[str, None]:
 
         while True:
@@ -214,24 +191,34 @@ class ChatManager:
 
                 if isinstance(response.output, StreamingAgentChatResponse):
                     async for token in response.output.async_response_gen():
-                        yield str(token)
+                        # Skip observation messages unless in verbose mode
+                        if not token.startswith("Observation:") or event_handler:
+                            # Clean the token before yielding
+                            clean_token = str(token).strip().strip('"')
+                            if clean_token:  # Only yield non-empty tokens
+                                yield clean_token
                 else:
-                    # If not streaming, send the complete response
-                    yield str(response.output)
+                    # For non-streaming responses, filter observations and clean output
+                    output = str(response.output).strip().strip('"')
+                    if (not output.startswith("Observation:") or event_handler) and output:
+                        yield output
 
-                # Process events
+                # Process events only if event_handler is provided
                 if event_handler:
                     while not event_handler._aqueue.empty():
                         event = await event_handler._aqueue.get()
                         event_response = event.get('data')
                         if event_response is not None:
+                            # Clean event response if it's a string
+                            if isinstance(event_response, str):
+                                event_response = event_response.strip().strip('"')
                             yield event_response
 
                 if response.is_last:
-                    # Signal the end of the stream
-                    yield "END_OF_STREAM"
+                    if event_handler:  # Only yield END_OF_STREAM in verbose mode
+                        yield "END_OF_STREAM"
                     break
 
             except Exception as e:
-                yield f"error during step execution: {str(e)}"
+                yield f"Error: {str(e)}"
                 break

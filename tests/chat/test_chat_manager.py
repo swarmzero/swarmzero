@@ -168,7 +168,7 @@ async def test_execute_task_with_exception(multi_modal_agent):
         if chunk is not None:
             result += chunk
 
-    assert result == "error during step execution: Could not find step_id: task_id_123"
+    assert result == "Error: Could not find step_id: task_id_123"
     multi_modal_agent._arun_step.assert_called_once_with("task_id_123")
 
 

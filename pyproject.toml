@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "swarmzero"
-version = "0.0.2"
+version = "0.0.3"
 description = "This library provides you with an easy way to orchestrate AI Agents and Swarms on SwarmZero"
 authors = ["SwarmZero Team <info@swarmzero.ai>"]
 readme = "README.md"

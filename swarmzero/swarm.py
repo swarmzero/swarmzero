@@ -149,25 +149,29 @@ class Swarm:
             stored_files = await insert_files_to_index(files, self.id, self.sdk_context)
 
         response = ""
-        async for chunk in inject_additional_attributes(
-            lambda: chat_manager.generate_response(
-                db_manager, last_message, stored_files, event_handler, stream_mode=False, verbose=verbose
-            ),
-            {"user_id": user_id},
-        ):
-            try:
-                if verbose:
-                    if isinstance(chunk, dict):
-                        response += f"0:{json.dumps(chunk)}\n"
-                    elif isinstance(chunk, list):
-                        response += f"2:{json.dumps(chunk)}\n"
+        try:
+            async for chunk in inject_additional_attributes(
+                lambda: chat_manager.generate_response(
+                    db_manager, last_message, stored_files, event_handler, stream_mode=False, verbose=verbose
+                ),
+                {"user_id": user_id},
+            ):
+                try:
+                    if verbose:
+                        if isinstance(chunk, dict):
+                            response += f"0:{json.dumps(chunk)}\n"
+                        elif isinstance(chunk, list):
+                            response += f"2:{json.dumps(chunk)}\n"
+                        else:
+                            response += f"1:{json.dumps(chunk)}\n"
                     else:
-                        response += f"1:{json.dumps(chunk)}\n"
-                else:
-                    if isinstance(chunk, str):
-                        response += chunk
-            except Exception as e:
-                print(f"Error processing chunk: {e}")
+                        if isinstance(chunk, str):
+                            response += chunk
+                except Exception as e:
+                    print(f"Error processing chunk: {e}")
+        finally:
+            if hasattr(db_manager, "db"):
+                await db_manager.db.close()
 
         return response
 

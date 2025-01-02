@@ -1,4 +1,3 @@
-import json
 import os
 from datetime import datetime, timezone
 from pathlib import Path
@@ -107,55 +106,60 @@ class ChatManager:
         collected_message_chunks = []
         collected_event_chunks = []
 
-        if db_manager is not None:
-            chat_history = await self.get_messages(db_manager)
-            await self.add_message(db_manager, last_message.role.value, last_message.content, [])
+        try:
+            if db_manager is not None:
+                chat_history = await self.get_messages(db_manager)
+                await self.add_message(db_manager, last_message.role.value, last_message.content, [])
 
-        if self.enable_multi_modal:
-            image_documents = (
-                [
-                    ImageDocument(image=file_store.get_file(image_path))
-                    for image_path in files
-                    if self.is_valid_image(image_path)
-                ]
-                if files is not None and len(files) > 0
-                else []
-            )
+            if self.enable_multi_modal:
+                image_documents = (
+                    [
+                        ImageDocument(image=file_store.get_file(image_path))
+                        for image_path in files
+                        if self.is_valid_image(image_path)
+                    ]
+                    if files is not None and len(files) > 0
+                    else []
+                )
 
-            async for chunk in self._handle_multimodal_task(
-                last_message, chat_history, image_documents, event_handler if verbose else None, stream_mode
-            ):
-                if isinstance(chunk, str):
-                    collected_message_chunks.append(chunk)
-                    if chunk != "END_OF_STREAM" or verbose:
+                async for chunk in self._handle_multimodal_task(
+                    last_message, chat_history, image_documents, event_handler if verbose else None, stream_mode
+                ):
+                    if isinstance(chunk, str):
+                        collected_message_chunks.append(chunk)
+                        if chunk != "END_OF_STREAM" or verbose:
+                            yield chunk
+                    elif verbose:
+                        collected_event_chunks.append(chunk)
                         yield chunk
-                elif verbose:
-                    collected_event_chunks.append(chunk)
-                    yield chunk
 
-        else:
-            async for chunk in self._handle_task(
-                last_message, chat_history, event_handler if verbose else None, stream_mode
-            ):
-                if isinstance(chunk, str):
-                    collected_message_chunks.append(chunk)
-                    if chunk != "END_OF_STREAM" or verbose:
+            else:
+                async for chunk in self._handle_task(
+                    last_message, chat_history, event_handler if verbose else None, stream_mode
+                ):
+                    if isinstance(chunk, str):
+                        collected_message_chunks.append(chunk)
+                        if chunk != "END_OF_STREAM" or verbose:
+                            yield chunk
+                    elif verbose:
+                        collected_event_chunks.append(chunk)
                         yield chunk
-                elif verbose:
-                    collected_event_chunks.append(chunk)
-                    yield chunk
 
-        # Store the complete response in the database
-        if db_manager is not None:
-            complete_response = ''.join(collected_message_chunks)
-            await self.add_message(db_manager, MessageRole.ASSISTANT.value, complete_response, collected_event_chunks)
+            # Store the complete response in the database
+            if db_manager is not None:
+                complete_response = ''.join(collected_message_chunks)
+                await self.add_message(
+                    db_manager, MessageRole.ASSISTANT.value, complete_response, collected_event_chunks
+                )
 
-        # Only generate suggestions if enabled
-        if self.enable_suggestions:
-            question_data = await self.next_question_suggestion.suggest_next_questions(
-                chat_history, ''.join(collected_message_chunks), self.llm
-            )
-            yield question_data
+            # Only generate suggestions if enabled
+            if self.enable_suggestions:
+                question_data = await self.next_question_suggestion.suggest_next_questions(
+                    chat_history, ''.join(collected_message_chunks), self.llm
+                )
+                yield question_data
+        except Exception as e:
+            yield f"Error: {str(e)}"
 
     async def _handle_multimodal_task(
         self,

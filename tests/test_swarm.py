@@ -1,12 +1,9 @@
-import json
 import uuid
-from typing import List
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 from llama_index.core.agent import ReActAgent
-from llama_index.core.llms import ChatMessage, MessageRole
-from llama_index.core.tools import QueryEngineTool, ToolMetadata
+from llama_index.core.tools import ToolMetadata
 
 from swarmzero.agent import Agent
 from swarmzero.chat import ChatManager
@@ -124,6 +121,10 @@ async def test_remove_nonexistent_agent(basic_swarm):
 @pytest.mark.asyncio
 async def test_chat(basic_swarm, mock_sdk_context):
     mock_chat_manager = AsyncMock(spec=ChatManager)
+    mock_db = AsyncMock()
+    mock_db.close = AsyncMock()
+    mock_db_manager = MagicMock()
+    mock_db_manager.db = mock_db
 
     async def mock_generate_response(*args, **kwargs):
         yield "Test response"
@@ -131,10 +132,12 @@ async def test_chat(basic_swarm, mock_sdk_context):
             yield "END_OF_STREAM"
 
     mock_chat_manager.generate_response = mock_generate_response
+    mock_sdk_context.get_utility.return_value = mock_db_manager
 
     with patch('swarmzero.swarm.ChatManager', return_value=mock_chat_manager):
         response = await basic_swarm.chat(prompt="Test prompt", user_id="test_user", session_id="test_session")
         assert response == "Test response"
+        mock_db.close.assert_awaited_once()
 
 
 @pytest.mark.asyncio

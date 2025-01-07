@@ -12,6 +12,8 @@ from sqlalchemy import (
     String,
     Table,
     Text,
+    asc,
+    desc,
     select,
 )
 from sqlalchemy.exc import SQLAlchemyError
@@ -174,8 +176,27 @@ class DatabaseManager:
             logger.error(f"Error inserting data into '{table_name}': {str(e)}")
             raise ValueError(f"Error inserting data: {str(e)}")
 
-    async def read_data(self, table_name: str, filters: Optional[Dict[str, List[Any]]] = None):
-        logger.info(f"Reading data from '{table_name}' with filters: {filters}")
+    async def read_data(
+        self,
+        table_name: str,
+        filters: Optional[Dict[str, List[Any]]] = None,
+        order_by: Optional[str] = None,
+        limit: Optional[int] = None,
+        offset: Optional[int] = None,
+    ):
+        """
+        Read data from a table with support for filtering, ordering, and pagination.
+
+        :param table_name: Name of the table to read from
+        :param filters: Dictionary of column names and list of values to filter by
+        :param order_by: Column name to order results by
+        :param limit: Maximum number of results to return
+        :param offset: Number of results to skip
+        :return: List of matching records
+        """
+        logger.info(
+            f"Reading data from '{table_name}' with filters: {filters}, order_by: {order_by}, limit: {limit}, offset: {offset}"
+        )
         try:
             columns = await self.get_table_definition(table_name)
             if not columns:
@@ -186,6 +207,8 @@ class DatabaseManager:
                 await conn.run_sync(metadata.create_all)
 
             query = select(model)
+
+            # Apply filters
             if filters:
                 for key, values in filters.items():
                     if key == "details":
@@ -193,13 +216,33 @@ class DatabaseManager:
                             for sub_key, sub_value in value.items():
                                 query = query.where(getattr(model, key)[sub_key] == sub_value)
                     else:
-                        query = query.filter(getattr(model, key).in_(values))
+                        # Support partial text matching for string fields
+                        column = getattr(model, key)
+                        if isinstance(column.type, String) and len(values) == 1:
+                            query = query.where(column.ilike(f"%{values[0]}%"))
+                        else:
+                            query = query.filter(column.in_(values))
+
+            # Apply ordering
+            if order_by:
+                if order_by.startswith("-"):
+                    query = query.order_by(desc(getattr(model, order_by[1:])))
+                else:
+                    query = query.order_by(asc(getattr(model, order_by)))
+
+            # Apply pagination
+            if offset is not None:
+                query = query.offset(offset)
+            if limit is not None:
+                query = query.limit(limit)
 
             result = await self.db.execute(query)
             instances = result.scalars().all()
             data = [{column: getattr(instance, column) for column in columns.keys()} for instance in instances]
+
             logger.info(f"Data read from '{table_name}' successfully.")
             return data
+
         except SQLAlchemyError as e:
             await self.db.rollback()
             logger.error(f"Error reading data from '{table_name}': {str(e)}")

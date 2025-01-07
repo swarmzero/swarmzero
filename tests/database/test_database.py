@@ -1,21 +1,31 @@
+import logging
 import unittest
 from unittest.mock import AsyncMock, patch
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.ext.declarative import declarative_base
 
-from swarmzero.database.database import DatabaseManager
+from swarmzero.database.database import DatabaseManager, initialize_db
 
 Base = declarative_base()
 
 
 class TestDatabaseManager(unittest.IsolatedAsyncioTestCase):
+    async def asyncSetUp(self):
+        await initialize_db()
+
     @patch("swarmzero.database.database.DatabaseManager.__init__")
     async def test_create_table(self, mock_init):
         mock_session = AsyncMock(spec=AsyncSession)
         mock_init.return_value = None
         db_manager = DatabaseManager(mock_session)
         db_manager.db = mock_session
+        db_manager.logger = logging.getLogger(__name__)
+        db_manager.get_session = AsyncMock(return_value=mock_session)
+
+        # Mock the session's async context manager
+        mock_session.__aenter__.return_value = mock_session
+        mock_session.__aexit__.return_value = None
 
         # Test valid case
         columns = {"name": "String", "age": "Integer"}
@@ -57,6 +67,12 @@ class TestDatabaseManager(unittest.IsolatedAsyncioTestCase):
         mock_init.return_value = None
         db_manager = DatabaseManager(mock_session)
         db_manager.db = mock_session
+        db_manager.logger = logging.getLogger(__name__)
+        db_manager.get_session = AsyncMock(return_value=mock_session)
+
+        # Mock the session's async context manager
+        mock_session.__aenter__.return_value = mock_session
+        mock_session.__aexit__.return_value = None
 
         # Test valid case
         table_definition = {"name": "String", "age": "Integer"}
@@ -112,6 +128,11 @@ class TestDatabaseManager(unittest.IsolatedAsyncioTestCase):
         mock_init.return_value = None
         db_manager = DatabaseManager(mock_session)
         db_manager.db = mock_session
+        db_manager.logger = logging.getLogger(__name__)
+
+        # Mock the session's async context manager
+        mock_session.__aenter__.return_value = mock_session
+        mock_session.__aexit__.return_value = None
 
         # Test valid case
         table_definition = {"name": "String", "age": "Integer"}
@@ -140,6 +161,11 @@ class TestDatabaseManager(unittest.IsolatedAsyncioTestCase):
         mock_init.return_value = None
         db_manager = DatabaseManager(mock_session)
         db_manager.db = mock_session
+        db_manager.logger = logging.getLogger(__name__)
+
+        # Mock the session's async context manager
+        mock_session.__aenter__.return_value = mock_session
+        mock_session.__aexit__.return_value = None
 
         # Test valid case
         table_definition = {"name": "String", "age": "Integer"}

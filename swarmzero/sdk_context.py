@@ -4,13 +4,10 @@ from datetime import datetime
 from typing import Any, Optional
 
 from llama_index.core.callbacks import CallbackManager
-from sqlalchemy import MetaData, create_engine
-from sqlalchemy.sql import text as sql_text
 
 from swarmzero.config import Config
 from swarmzero.database.database import (
     DatabaseManager,
-    db_url,
     get_db,
     initialize_db,
     setup_chats_table,
@@ -231,11 +228,15 @@ class SDKContext:
         """
         Retrieve a resource from the context.
 
-        :param name: Name of the resource.
-        :return: The requested resource.
+        :param key: Key/ID of the resource.
+        :return: The requested resource object.
         """
         resource = self.resources.get(key)
-        return resource.get("object") if isinstance(resource, dict) else resource
+        if not resource:
+            return None
+        if isinstance(resource, dict):
+            return resource.get("object")
+        return resource
 
     def add_resource_info(self, resource_info: dict):
         """
@@ -245,14 +246,17 @@ class SDKContext:
         """
         self.resources_info[resource_info["name"]] = resource_info
 
-    def get_resource_info(self, name: str):
+    def get_resource_info(self, key: str):
         """
         Retrieve resource information from the context.
 
-        :param name: Name of the resource.
+        :param key: Key/ID of the resource.
         :return: Information about the requested resource.
         """
-        return self.resources_info.get(name)
+        resource = self.resources.get(key)
+        if isinstance(resource, dict):
+            return resource.get("init_params")
+        return None
 
     def save_sdk_context_json(self, file_path="sdk_context.json"):
         """
@@ -293,66 +297,78 @@ class SDKContext:
     def restore_non_serializable_objects(self):
         """
         Restore non-serializable objects after loading the context.
+        First restore all agents, then restore swarms that depend on those agents.
         """
         from swarmzero.agent import Agent
         from swarmzero.swarm import Swarm
 
-        for name, resource in self.resources.items():
-            if isinstance(resource, dict):
-                params = resource["init_params"]
+        # First pass: Restore agents
+        for name, resource in list(self.resources.items()):
+            if not isinstance(resource, dict) or resource.get("object") is not None:
+                continue
 
-                if params["type"] == "agent":
-                    functions = [
-                        getattr(importlib.import_module(func["module"]), func["name"]) for func in params["functions"]
-                    ]
+            params = resource["init_params"]
+            if params["type"] != "agent":
+                continue
 
-                    resource_obj = Agent(
-                        agent_id=params["id"],
-                        name=params["name"],
-                        sdk_context=self,
-                        host=params["host"],
-                        port=params["port"],
-                        instruction=params["instruction"],
-                        role=params["role"],
-                        description=params["description"],
-                        swarm_mode=params["swarm_mode"],
-                        required_exts=params["required_exts"],
-                        retrieval_tool=params["retrieval_tool"],
-                        load_index_file=params["load_index_file"],
-                        functions=functions,
-                    )
-                    self.resources[name]["object"] = resource_obj
+            functions = [getattr(importlib.import_module(func["module"]), func["name"]) for func in params["functions"]]
 
-                elif params["type"] == "swarm":
-                    functions = [
-                        getattr(importlib.import_module(func["module"]), func["name"]) for func in params["functions"]
-                    ]
+            resource_obj = Agent(
+                agent_id=params["id"],
+                name=params["name"],
+                sdk_context=self,
+                instruction=params["instruction"],
+                role=params["role"],
+                description=params["description"],
+                swarm_mode=params["swarm_mode"],
+                required_exts=params["required_exts"],
+                retrieval_tool=params["retrieval_tool"],
+                load_index_file=params.get("load_index_file", False),
+                functions=functions,
+            )
+            self.resources[name]["object"] = resource_obj
 
-                    # Get the agent objects that belong to this swarm
-                    agents = []
-                    for agent_id in params["agents"]:
-                        agent_resource = self.get_resource(agent_id)
-                        if agent_resource:
-                            agents.append(agent_resource)
+        # Second pass: Restore swarms (now that all agents are available)
+        for name, resource in list(self.resources.items()):
+            if not isinstance(resource, dict) or resource.get("object") is not None:
+                continue
 
-                    resource_obj = Swarm(
-                        name=params["name"],
-                        description=params["description"],
-                        instruction=params["instruction"],
-                        functions=functions,
-                        agents=agents,
-                        swarm_id=params["id"],
-                        sdk_context=self,
-                    )
-                    self.resources[name]["object"] = resource_obj
+            params = resource["init_params"]
+            if params["type"] != "swarm":
+                continue
+
+            functions = [getattr(importlib.import_module(func["module"]), func["name"]) for func in params["functions"]]
+
+            # Get the agent objects that belong to this swarm
+            agents = []
+            for agent_id in params["agents"]:
+                agent_resource = self.get_resource(agent_id)
+                if not agent_resource:
+                    raise ValueError(f"Agent {agent_id} not found when restoring swarm {params['name']}")
+                agents.append(agent_resource)
+
+            if not agents:
+                raise ValueError(f"No agents found for swarm {params['name']}")
+
+            resource_obj = Swarm(
+                name=params["name"],
+                description=params["description"],
+                instruction=params["instruction"],
+                functions=functions,
+                agents=agents,
+                swarm_id=params["id"],
+                sdk_context=self,
+            )
+            self.resources[name]["object"] = resource_obj
 
     async def initialize_database(self):
         await initialize_db()
 
     async def save_sdk_context_to_db(self):
+        """Save the current SDK context to the database."""
         db_manager = self.get_utility("db_manager")
         table_exists = await db_manager.get_table_definition("sdkcontext")
-        if table_exists == None:
+        if table_exists is None:
             # Create a table to store configuration and resource details as JSON
             await db_manager.create_table("sdkcontext", {"type": "String", "data": "JSON", "create_date": "DateTime"})
 
@@ -379,18 +395,8 @@ class SDKContext:
         :param limit: Maximum number of records to returns default is 1.
         :return: List of records matching the conditions.
         """
-        query = f"SELECT * FROM {table_name} WHERE " + " AND ".join(
-            [f"{k} = '{conditions[k]}'" for k in conditions.keys()]
-        )
-        if order_by:
-            query += f" ORDER BY {order_by} DESC"
-        if limit:
-            query += f" LIMIT {limit}"
-
-        print(query)
         db_manager = self.get_utility("db_manager")
-        result = await db_manager.db.execute(sql_text(query), conditions)
-        return result.fetchall()
+        return await db_manager.read_data(table_name, filters=conditions, order_by=order_by, limit=limit)
 
     async def load_sdk_context_from_db(self):
         """
@@ -508,3 +514,148 @@ class SDKContext:
                 db_manager = DatabaseManager(db)
                 self.add_utility(db_manager, utility_type="DatabaseManager", name="db_manager")
                 break  # Exit after getting the first session
+
+    async def save_resource_to_db(self, resource_id: str):
+        """Save a specific resource (agent/swarm) to the database."""
+        db_manager = self.get_utility("db_manager")
+        table_exists = await db_manager.get_table_definition("resources")
+        if table_exists is None:
+            # Create a table to store individual resources
+            await db_manager.create_table(
+                "resources",
+                {
+                    "resource_id": "String",  # Agent or Swarm ID
+                    "name": "String",  # Name of the resource
+                    "type": "String",  # 'agent' or 'swarm'
+                    "config": "JSON",  # Resource configuration
+                    "state": "JSON",  # Current state/runtime data
+                    "create_date": "DateTime",
+                    "last_modified": "DateTime",
+                },
+            )
+
+        resource = self.resources.get(resource_id)
+        if resource is None:
+            raise ValueError(f"Resource {resource_id} not found")
+
+        params = resource["init_params"]
+
+        # If this is a swarm, save its agents first
+        if params["type"] == "swarm":
+            for agent_id in params["agents"]:
+                # Check if agent exists in resources table
+                agent_exists = await db_manager.read_data("resources", {"resource_id": [agent_id]})
+                if not agent_exists:
+                    # Get agent from sdkcontext resources
+                    agent_resource = self.resources.get(agent_id)
+                    if agent_resource:
+                        # Save agent to resources table
+                        await self.save_resource_to_db(agent_id)
+                    else:
+                        raise ValueError(f"Agent {agent_id} not found when saving swarm {params['name']}")
+
+        # Split configuration and state
+        config_data = {
+            "name": params["name"],
+            "type": params["type"],
+            "instruction": params["instruction"],
+            "description": params.get("description"),
+            "functions": params["functions"],
+        }
+
+        if params["type"] == "agent":
+            config_data.update(
+                {
+                    "role": params["role"],
+                    "swarm_mode": params["swarm_mode"],
+                    "required_exts": params["required_exts"],
+                    "retrieval_tool": params["retrieval_tool"],
+                    "load_index_file": params.get("load_index_file", False),
+                }
+            )
+        elif params["type"] == "swarm":
+            config_data["agents"] = params["agents"]
+
+        # Prepare the resource data
+        resource_data = {
+            "resource_id": resource_id,
+            "name": params["name"],
+            "type": params["type"],
+            "config": config_data,
+            "state": {},  # Current state would go here
+            "create_date": datetime.now(),
+            "last_modified": datetime.now(),
+        }
+
+        # Insert or update the resource in the database
+        await db_manager.insert_data("resources", resource_data)
+
+    async def load_resource_from_db(self, resource_id: str):
+        """Load a resource and its dependencies from the database."""
+        db_manager = self.get_utility("db_manager")
+        results = await db_manager.read_data("resources", {"resource_id": [resource_id]})
+
+        if not results:
+            return None
+
+        resource_data = results[0]
+        config = resource_data["config"]
+        config["id"] = resource_data["resource_id"]
+
+        # If this is a swarm, load its agents first
+        if config["type"] == "swarm":
+            for agent_id in config["agents"]:
+                if agent_id not in self.resources:
+                    agent = await self.load_resource_from_db(agent_id)
+                    if not agent:
+                        raise ValueError(f"Failed to load agent {agent_id} for swarm {config['name']}")
+
+        # Add the resource to the context
+        self.resources[resource_id] = {"init_params": config, "object": None}
+        self.restore_non_serializable_objects()
+        return self.get_resource(resource_id)
+
+    async def find_resources(
+        self, resource_type: Optional[str] = None, name: Optional[str] = None, limit: int = 10, offset: int = 0
+    ):
+        """
+        Find resources based on type and/or name with pagination.
+
+        :param resource_type: Optional filter by resource type ('agent' or 'swarm')
+        :param name: Optional filter by resource name (supports partial matches)
+        :param limit: Maximum number of results to return
+        :param offset: Number of results to skip
+        :return: List of matching resources
+        """
+        db_manager = self.get_utility("db_manager")
+
+        # Build the query conditions
+        conditions = {}
+        if resource_type:
+            conditions["type"] = [resource_type]
+        if name:
+            conditions["name"] = [name]
+
+        # Get paginated results
+        resources = await db_manager.read_data(
+            "resources", filters=conditions, order_by="last_modified", limit=limit, offset=offset
+        )
+
+        return resources
+
+    async def save_config_to_db(self):
+        """Save the current configuration to the database."""
+        db_manager = self.get_utility("db_manager")
+        table_exists = await db_manager.get_table_definition("config")
+        if table_exists is None:
+            # Create a table to store configuration details as JSON
+            await db_manager.create_table("config", {"name": "String", "data": "JSON", "create_date": "DateTime"})
+
+        # Prepare the config data to be inserted
+        config_data = {
+            "default_config": self.default_config,
+            "agent_configs": self.agent_configs,
+        }
+
+        # Insert the data into the table
+        await db_manager.insert_data("config", {"name": "default", "data": config_data, "create_date": datetime.now()})

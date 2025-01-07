@@ -4,7 +4,6 @@ from datetime import datetime
 from typing import Any, Optional
 
 from llama_index.core.callbacks import CallbackManager
-from sqlalchemy.sql import text as sql_text
 
 from swarmzero.config import Config
 from swarmzero.database.database import (
@@ -366,6 +365,7 @@ class SDKContext:
         await initialize_db()
 
     async def save_sdk_context_to_db(self):
+        """Save the current SDK context to the database."""
         db_manager = self.get_utility("db_manager")
         table_exists = await db_manager.get_table_definition("sdkcontext")
         if table_exists is None:
@@ -395,18 +395,8 @@ class SDKContext:
         :param limit: Maximum number of records to returns default is 1.
         :return: List of records matching the conditions.
         """
-        query = f"SELECT * FROM {table_name} WHERE " + " AND ".join(
-            [f"{k} = '{conditions[k]}'" for k in conditions.keys()]
-        )
-        if order_by:
-            query += f" ORDER BY {order_by} DESC"
-        if limit:
-            query += f" LIMIT {limit}"
-
-        print(query)
         db_manager = self.get_utility("db_manager")
-        result = await db_manager.db.execute(sql_text(query), conditions)
-        return result.fetchall()
+        return await db_manager.read_data(table_name, filters=conditions, order_by=order_by, limit=limit)
 
     async def load_sdk_context_from_db(self):
         """

@@ -97,6 +97,22 @@ class DatabaseManager:
 
     def __init__(self, db: AsyncSession):
         self.db = db
+        self.logger = logging.getLogger(__name__)
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        await self.close()
+
+    async def close(self):
+        """Close the database session."""
+        if self.db:
+            await self.db.close()
+
+    async def get_session(self) -> AsyncSession:
+        """Get a new database session."""
+        return SessionLocal()
 
     def _generate_model_class(self, table_name: str, columns: Dict[str, str]):
         metadata = MetaData()
@@ -120,42 +136,44 @@ class DatabaseManager:
         return model, metadata
 
     async def create_table(self, table_name: str, columns: Dict[str, str]):
-        logger.info(f"Creating table '{table_name}' with columns: {columns}")
+        self.logger.info(f"Creating table '{table_name}' with columns: {columns}")
         try:
             if not isinstance(columns, dict):
                 raise ValueError("Columns must be a dictionary")
 
-            table_definition = TableDefinition(table_name=table_name, columns=columns)
-            self.db.add(table_definition)
-            await self.db.commit()
-            logger.info(f"Table definition for '{table_name}' saved.")
+            session = await self.get_session()
+            async with session as session:
+                table_definition = TableDefinition(table_name=table_name, columns=columns)
+                session.add(table_definition)
+                await session.commit()
+                self.logger.info(f"Table definition for '{table_name}' saved.")
 
-            _, metadata = self._generate_model_class(table_name, columns)
-            async with engine.begin() as conn:
-                await conn.run_sync(metadata.create_all)
-            logger.info(f"Table '{table_name}' created successfully.")
+                _, metadata = self._generate_model_class(table_name, columns)
+                async with engine.begin() as conn:
+                    await conn.run_sync(metadata.create_all)
+                self.logger.info(f"Table '{table_name}' created successfully.")
         except SQLAlchemyError as e:
-            await self.db.rollback()
-            logger.error(f"Error creating table '{table_name}': {str(e)}")
+            self.logger.error(f"Error creating table '{table_name}': {str(e)}")
             raise ValueError(f"Error creating table: {str(e)}")
 
     async def get_table_definition(self, table_name: str):
-        logger.info(f"Retrieving table definition for '{table_name}'")
+        self.logger.info(f"Retrieving table definition for '{table_name}'")
         try:
-            async with SessionLocal() as session:
+            session = await self.get_session()
+            async with session as session:
                 result = await session.execute(select(TableDefinition).filter_by(table_name=table_name))
                 table_definition = result.scalars().first()
                 if table_definition:
-                    logger.info(f"Table definition for '{table_name}' retrieved successfully.")
+                    self.logger.info(f"Table definition for '{table_name}' retrieved successfully.")
                     return table_definition.columns
-                logger.warning(f"Table definition for '{table_name}' not found.")
+                self.logger.warning(f"Table definition for '{table_name}' not found.")
                 return None
         except SQLAlchemyError as e:
-            logger.error(f"Error retrieving table definition for '{table_name}': {str(e)}")
+            self.logger.error(f"Error retrieving table definition for '{table_name}': {str(e)}")
             raise ValueError(f"Error retrieving table definition: {str(e)}")
 
     async def insert_data(self, table_name: str, data: Dict[str, Any]):
-        logger.info(f"Inserting data into '{table_name}': {data}")
+        self.logger.info(f"Inserting data into '{table_name}': {data}")
         try:
             columns = await self.get_table_definition(table_name)
             if not columns:
@@ -165,15 +183,16 @@ class DatabaseManager:
             async with engine.begin() as conn:
                 await conn.run_sync(metadata.create_all)
 
-            instance = model(**data)
-            self.db.add(instance)
-            await self.db.commit()
-            await self.db.refresh(instance)
-            logger.info(f"Data inserted into '{table_name}' successfully, id: {instance.id}")
-            return instance
+            session = await self.get_session()
+            async with session as session:
+                instance = model(**data)
+                session.add(instance)
+                await session.commit()
+                await session.refresh(instance)
+                self.logger.info(f"Data inserted into '{table_name}' successfully, id: {instance.id}")
+                return instance
         except SQLAlchemyError as e:
-            await self.db.rollback()
-            logger.error(f"Error inserting data into '{table_name}': {str(e)}")
+            self.logger.error(f"Error inserting data into '{table_name}': {str(e)}")
             raise ValueError(f"Error inserting data: {str(e)}")
 
     async def read_data(
@@ -184,18 +203,9 @@ class DatabaseManager:
         limit: Optional[int] = None,
         offset: Optional[int] = None,
     ):
-        """
-        Read data from a table with support for filtering, ordering, and pagination.
-
-        :param table_name: Name of the table to read from
-        :param filters: Dictionary of column names and list of values to filter by
-        :param order_by: Column name to order results by
-        :param limit: Maximum number of results to return
-        :param offset: Number of results to skip
-        :return: List of matching records
-        """
-        logger.info(
-            f"Reading data from '{table_name}' with filters: {filters}, order_by: {order_by}, limit: {limit}, offset: {offset}"
+        self.logger.info(
+            f"Reading data from '{table_name}' with filters: {filters}, "
+            f"order_by: {order_by}, limit: {limit}, offset: {offset}"
         )
         try:
             columns = await self.get_table_definition(table_name)
@@ -208,7 +218,6 @@ class DatabaseManager:
 
             query = select(model)
 
-            # Apply filters
             if filters:
                 for key, values in filters.items():
                     if key == "details":
@@ -216,40 +225,38 @@ class DatabaseManager:
                             for sub_key, sub_value in value.items():
                                 query = query.where(getattr(model, key)[sub_key] == sub_value)
                     else:
-                        # Support partial text matching for string fields
                         column = getattr(model, key)
                         if isinstance(column.type, String) and len(values) == 1:
                             query = query.where(column.ilike(f"%{values[0]}%"))
                         else:
                             query = query.filter(column.in_(values))
 
-            # Apply ordering
             if order_by:
                 if order_by.startswith("-"):
                     query = query.order_by(desc(getattr(model, order_by[1:])))
                 else:
                     query = query.order_by(asc(getattr(model, order_by)))
 
-            # Apply pagination
             if offset is not None:
                 query = query.offset(offset)
             if limit is not None:
                 query = query.limit(limit)
 
-            result = await self.db.execute(query)
-            instances = result.scalars().all()
-            data = [{column: getattr(instance, column) for column in columns.keys()} for instance in instances]
+            session = await self.get_session()
+            async with session as session:
+                result = await session.execute(query)
+                instances = result.scalars().all()
+                data = [{column: getattr(instance, column) for column in columns.keys()} for instance in instances]
 
-            logger.info(f"Data read from '{table_name}' successfully.")
+            self.logger.info(f"Data read from '{table_name}' successfully.")
             return data
 
         except SQLAlchemyError as e:
-            await self.db.rollback()
-            logger.error(f"Error reading data from '{table_name}': {str(e)}")
+            self.logger.error(f"Error reading data from '{table_name}': {str(e)}")
             raise ValueError(f"Error reading data: {str(e)}")
 
     async def update_data(self, table_name: str, row_id: int, new_data: Dict[str, Any]):
-        logger.info(f"Updating data in '{table_name}' for id {row_id} with new data: {new_data}")
+        self.logger.info(f"Updating data in '{table_name}' for id {row_id} with new data: {new_data}")
         try:
             columns = await self.get_table_definition(table_name)
             if not columns:
@@ -265,17 +272,16 @@ class DatabaseManager:
                     setattr(instance, key, value)
                 await self.db.commit()
                 await self.db.refresh(instance)
-                logger.info(f"Data in '{table_name}' for id {row_id} updated successfully.")
+                self.logger.info(f"Data in '{table_name}' for id {row_id} updated successfully.")
             else:
-                logger.warning(f"No data found with id {row_id} in '{table_name}'.")
+                self.logger.warning(f"No data found with id {row_id} in '{table_name}'.")
                 raise ValueError(f"No data found with id {row_id} in '{table_name}'.")
         except SQLAlchemyError as e:
-            await self.db.rollback()
-            logger.error(f"Error updating data in '{table_name}' for id {row_id}: {str(e)}")
+            self.logger.error(f"Error updating data in '{table_name}' for id {row_id}: {str(e)}")
             raise ValueError(f"Error updating data: {str(e)}")
 
     async def delete_data(self, table_name: str, row_id: int):
-        logger.info(f"Deleting data from '{table_name}' for id {row_id}")
+        self.logger.info(f"Deleting data from '{table_name}' for id {row_id}")
         try:
             columns = await self.get_table_definition(table_name)
             if not columns:
@@ -289,11 +295,10 @@ class DatabaseManager:
             if instance:
                 await self.db.delete(instance)
                 await self.db.commit()
-                logger.info(f"Data deleted from '{table_name}' for id {row_id} successfully.")
+                self.logger.info(f"Data deleted from '{table_name}' for id {row_id} successfully.")
             else:
-                logger.warning(f"No data found with id {row_id} in '{table_name}'.")
+                self.logger.warning(f"No data found with id {row_id} in '{table_name}'.")
                 raise ValueError(f"No data found with id {row_id} in '{table_name}'.")
         except SQLAlchemyError as e:
-            await self.db.rollback()
-            logger.error(f"Error deleting data from '{table_name}' for id {row_id}: {str(e)}")
+            self.logger.error(f"Error deleting data from '{table_name}' for id {row_id}: {str(e)}")
             raise ValueError(f"Error deleting data: {str(e)}")

@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from llama_index.agent.openai import OpenAIAgent  # type: ignore
@@ -68,7 +68,7 @@ def db_manager():
 
 @pytest.mark.asyncio
 async def test_add_message(agent, db_manager):
-    chat_manager = ChatManager(agent, user_id="123", session_id="abc")
+    chat_manager = ChatManager(agent, user_id="123", session_id="abc", agent_id="test_agent", swarm_id="test_swarm")
     await chat_manager.add_message(db_manager, MessageRole.USER, "Hello!", {'event': 'event'})
     messages = await chat_manager.get_messages(db_manager)
     assert len(messages) == 1
@@ -77,7 +77,7 @@ async def test_add_message(agent, db_manager):
 
 @pytest.mark.asyncio
 async def test_generate_response_with_generic_llm(agent, db_manager):
-    chat_manager = ChatManager(agent, user_id="123", session_id="abc")
+    chat_manager = ChatManager(agent, user_id="123", session_id="abc", agent_id="test_agent", swarm_id="test_swarm")
     user_message = ChatMessage(role=MessageRole.USER, content="Hello!")
 
     response = ""
@@ -96,15 +96,15 @@ async def test_generate_response_with_generic_llm(agent, db_manager):
 
 @pytest.mark.asyncio
 async def test_get_all_chats_for_user(agent, db_manager):
-    chat_manager1 = ChatManager(agent, user_id="123", session_id="abc")
+    chat_manager1 = ChatManager(agent, user_id="123", session_id="abc", agent_id="test_agent", swarm_id="test_swarm")
     await chat_manager1.add_message(db_manager, MessageRole.USER, "Hello in abc", {'event': 'event'})
     await chat_manager1.add_message(db_manager, MessageRole.ASSISTANT, "Response in abc", {'event': 'event'})
 
-    chat_manager2 = ChatManager(agent, user_id="123", session_id="def")
+    chat_manager2 = ChatManager(agent, user_id="123", session_id="def", agent_id="test_agent", swarm_id="test_swarm")
     await chat_manager2.add_message(db_manager, MessageRole.USER, "Hello in def", {'event': 'event'})
     await chat_manager2.add_message(db_manager, MessageRole.ASSISTANT, "Response in def", {'event': 'event'})
 
-    chat_manager = ChatManager(agent, user_id="123", session_id="")
+    chat_manager = ChatManager(agent, user_id="123", session_id="", agent_id="test_agent", swarm_id="test_swarm")
     all_chats = await chat_manager.get_all_chats_for_user(db_manager)
 
     assert "abc" in all_chats
@@ -122,7 +122,14 @@ async def test_get_all_chats_for_user(agent, db_manager):
 @pytest.mark.asyncio
 async def test_generate_response_with_openai_multimodal(multi_modal_agent, db_manager):
     with patch("llama_index.core.settings._Settings.llm", new=MagicMock(spec=OpenAIMultiModal)):
-        chat_manager = ChatManager(multi_modal_agent, user_id="123", session_id="abc", enable_multi_modal=True)
+        chat_manager = ChatManager(
+            multi_modal_agent,
+            user_id="123",
+            session_id="abc",
+            enable_multi_modal=True,
+            agent_id="test_agent",
+            swarm_id="test_swarm",
+        )
         user_message = ChatMessage(role=MessageRole.USER, content="Hello!")
         files = ["image1.png", "image2.png"]
 
@@ -142,7 +149,9 @@ async def test_generate_response_with_openai_multimodal(multi_modal_agent, db_ma
 
 @pytest.mark.asyncio
 async def test_execute_task_success(multi_modal_agent):
-    chat_manager = ChatManager(multi_modal_agent, user_id="123", session_id="abc")
+    chat_manager = ChatManager(
+        multi_modal_agent, user_id="123", session_id="abc", agent_id="test_agent", swarm_id="test_swarm"
+    )
 
     result = ""
     async for chunk in chat_manager._execute_task("task_id_123", event_handler=None):
@@ -161,7 +170,9 @@ async def test_execute_task_with_exception(multi_modal_agent):
 
     multi_modal_agent._arun_step = MagicMock(side_effect=mock_arun_step)
 
-    chat_manager = ChatManager(multi_modal_agent, user_id="123", session_id="abc")
+    chat_manager = ChatManager(
+        multi_modal_agent, user_id="123", session_id="abc", agent_id="test_agent", swarm_id="test_swarm"
+    )
 
     result = ""
     async for chunk in chat_manager._execute_task("task_id_123", event_handler=None):
@@ -175,7 +186,7 @@ async def test_execute_task_with_exception(multi_modal_agent):
 @pytest.mark.asyncio
 async def test_generate_response_with_openai_agent(agent, db_manager):
     with patch("llama_index.core.settings._Settings.llm", new=MagicMock(spec=OpenAIAgent)):
-        chat_manager = ChatManager(agent, user_id="123", session_id="abc")
+        chat_manager = ChatManager(agent, user_id="123", session_id="abc", agent_id="test_agent", swarm_id="test_swarm")
         user_message = ChatMessage(role=MessageRole.USER, content="Hello!")
 
         response = ""

@@ -60,6 +60,7 @@ class Agent:
         role="",
         description="",
         agent_id=os.getenv("AGENT_ID", ""),
+        swarm_id: Optional[str] = None,
         retrieve=False,
         required_exts=supported_exts,
         retrieval_tool="basic",
@@ -93,6 +94,7 @@ class Agent:
         self.retrieval_tool = retrieval_tool
         self.index_name = index_name
         self.load_index_file = load_index_file
+        self.swarm_id = swarm_id
         logging.basicConfig(stream=sys.stdout, level=self.__config.get("log"))
         logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
 
@@ -224,7 +226,9 @@ class Agent:
         await self.sdk_context.save_sdk_context_to_db()
         db_manager = self.sdk_context.get_utility("db_manager")
 
-        chat_manager = ChatManager(self.__agent, user_id=user_id, session_id=session_id)
+        chat_manager = ChatManager(
+            self.__agent, user_id=user_id, session_id=session_id, agent_id=self.id, swarm_id=self.swarm_id
+        )
         last_message = ChatMessage(role=MessageRole.USER, content=prompt)
         event_handler = self.sdk_context.get_utility("reasoning_callback") if verbose else None
 
@@ -269,7 +273,9 @@ class Agent:
         await self.sdk_context.save_sdk_context_to_db()
         db_manager = self.sdk_context.get_utility("db_manager")
 
-        chat_manager = ChatManager(self.__agent, user_id=user_id, session_id=session_id)
+        chat_manager = ChatManager(
+            self.__agent, user_id=user_id, session_id=session_id, agent_id=self.id, swarm_id=self.swarm_id
+        )
         last_message = ChatMessage(role=MessageRole.USER, content=prompt)
         event_handler = self.sdk_context.get_utility("reasoning_callback") if verbose else None
         stored_files = []
@@ -305,7 +311,9 @@ class Agent:
         await self._ensure_utilities_loaded()
         db_manager = self.sdk_context.get_utility("db_manager")
 
-        chat_manager = ChatManager(self.__agent, user_id=user_id, session_id=session_id)
+        chat_manager = ChatManager(
+            self.__agent, user_id=user_id, session_id=session_id, agent_id=self.id, swarm_id=self.swarm_id
+        )
 
         chats = await chat_manager.get_all_chats_for_user(db_manager)
         return chats

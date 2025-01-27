@@ -26,6 +26,8 @@ class ChatManager:
         session_id: str,
         enable_multi_modal: bool = False,
         enable_suggestions: bool = False,
+        agent_id: Optional[str] = None,
+        swarm_id: Optional[str] = None,
     ):
         self.allowed_image_extensions = {".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff"}
         self.llm = llm
@@ -34,6 +36,8 @@ class ChatManager:
         self.chat_store_key = f"{user_id}_{session_id}"
         self.enable_multi_modal = enable_multi_modal
         self.enable_suggestions = enable_suggestions
+        self.agent_id = agent_id
+        self.swarm_id = swarm_id
         self.next_question_suggestion = NextQuestionSuggestion()
 
     def is_valid_image(self, file_path: str) -> bool:
@@ -48,9 +52,16 @@ class ChatManager:
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "event": event,
         }
-        if "AGENT_ID" in os.environ:
+
+        # First check instance variables, then fall back to environment variables
+        if self.agent_id is not None:
+            data["agent_id"] = self.agent_id
+        elif "AGENT_ID" in os.environ:
             data["agent_id"] = os.getenv("AGENT_ID", "")
-        if "SWARM_ID" in os.environ:
+
+        if self.swarm_id is not None:
+            data["swarm_id"] = self.swarm_id
+        elif "SWARM_ID" in os.environ:
             data["swarm_id"] = os.getenv("SWARM_ID", "")
 
         await db_manager.insert_data(
@@ -60,9 +71,16 @@ class ChatManager:
 
     async def get_messages(self, db_manager: DatabaseManager):
         filters = {"user_id": [self.user_id], "session_id": [self.session_id]}
-        if "AGENT_ID" in os.environ:
+
+        # First check instance variables, then fall back to environment variables
+        if self.agent_id is not None:
+            filters["agent_id"] = [self.agent_id]
+        elif "AGENT_ID" in os.environ:
             filters["agent_id"] = [os.getenv("AGENT_ID", "")]
-        if "SWARM_ID" in os.environ:
+
+        if self.swarm_id is not None:
+            filters["swarm_id"] = [self.swarm_id]
+        elif "SWARM_ID" in os.environ:
             filters["swarm_id"] = [os.getenv("SWARM_ID", "")]
 
         db_chat_history = await db_manager.read_data("chats", filters)
@@ -71,9 +89,16 @@ class ChatManager:
 
     async def get_all_chats_for_user(self, db_manager: DatabaseManager):
         filters = {"user_id": [self.user_id]}
-        if "AGENT_ID" in os.environ:
+
+        # First check instance variables, then fall back to environment variables
+        if self.agent_id is not None:
+            filters["agent_id"] = [self.agent_id]
+        elif "AGENT_ID" in os.environ:
             filters["agent_id"] = [os.getenv("AGENT_ID", "")]
-        if "SWARM_ID" in os.environ:
+
+        if self.swarm_id is not None:
+            filters["swarm_id"] = [self.swarm_id]
+        elif "SWARM_ID" in os.environ:
             filters["swarm_id"] = [os.getenv("SWARM_ID", "")]
 
         db_chat_history = await db_manager.read_data("chats", filters)

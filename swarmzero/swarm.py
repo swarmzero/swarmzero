@@ -68,6 +68,7 @@ class Swarm:
 
         if agents:
             for agent in agents:
+                agent.swarm_id = self.id
                 self.sdk_context.add_resource(agent, resource_type="agent")
                 self.__agents[agent.name] = {
                     "id": agent.id,
@@ -113,6 +114,7 @@ class Swarm:
     def add_agent(self, agent: Agent):
         if agent.name in self.__agents:
             raise ValueError(f"Agent `{agent.name}` already exists in the swarm.")
+        agent.swarm_id = self.id
         self.__agents[agent.name] = {
             "id": agent.id,
             "agent": agent,
@@ -140,7 +142,7 @@ class Swarm:
         await self.sdk_context.save_sdk_context_to_db()
         db_manager = self.sdk_context.get_utility("db_manager")
 
-        chat_manager = ChatManager(self.__swarm, user_id=user_id, session_id=session_id)
+        chat_manager = ChatManager(self.__swarm, user_id=user_id, session_id=session_id, swarm_id=self.id)
         last_message = ChatMessage(role=MessageRole.USER, content=prompt)
         event_handler = self.sdk_context.get_utility("reasoning_callback") if verbose else None
 
@@ -187,7 +189,7 @@ class Swarm:
         await self.sdk_context.save_sdk_context_to_db()
         db_manager = self.sdk_context.get_utility("db_manager")
 
-        chat_manager = ChatManager(self.__swarm, user_id=user_id, session_id=session_id)
+        chat_manager = ChatManager(self.__swarm, user_id=user_id, session_id=session_id, swarm_id=self.id)
         last_message = ChatMessage(role=MessageRole.USER, content=prompt)
         event_handler = self.sdk_context.get_utility("reasoning_callback") if verbose else None
         stored_files = []
@@ -216,7 +218,7 @@ class Swarm:
         await self._ensure_utilities_loaded()
         db_manager = self.sdk_context.get_utility("db_manager")
 
-        chat_manager = ChatManager(self.__swarm, user_id=user_id, session_id=session_id)
+        chat_manager = ChatManager(self.__swarm, user_id=user_id, session_id=session_id, swarm_id=self.id)
 
         chats = await chat_manager.get_all_chats_for_user(db_manager)
         return chats

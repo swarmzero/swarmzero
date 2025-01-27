@@ -93,7 +93,7 @@ def setup_chat_routes(router: APIRouter, id, sdk_context: SDKContext):
         callback_handler = sdk_context.get_utility("reasoning_callback") if verbose else None
 
         chat_manager = ChatManager(
-            llm_instance, user_id=user_id, session_id=session_id, enable_multi_modal=enable_multi_modal
+            llm_instance, user_id=user_id, session_id=session_id, enable_multi_modal=enable_multi_modal, agent_id=id
         )
         db_manager = DatabaseManager(db)
 
@@ -148,7 +148,7 @@ def setup_chat_routes(router: APIRouter, id, sdk_context: SDKContext):
         callback_handler = sdk_context.get_utility("reasoning_callback") if verbose else None
 
         chat_manager = ChatManager(
-            llm_instance, user_id=user_id, session_id=session_id, enable_multi_modal=enable_multi_modal
+            llm_instance, user_id=user_id, session_id=session_id, enable_multi_modal=enable_multi_modal, agent_id=id
         )
         db_manager = DatabaseManager(db)
 
@@ -190,7 +190,7 @@ def setup_chat_routes(router: APIRouter, id, sdk_context: SDKContext):
 
         llm_instance, enable_multi_modal = get_llm_instance(id, sdk_context)
 
-        chat_manager = ChatManager(llm_instance, user_id=user_id, session_id=session_id)
+        chat_manager = ChatManager(llm_instance, user_id=user_id, session_id=session_id, agent_id=id)
         db_manager = DatabaseManager(db)
         chat_history = await chat_manager.get_messages(db_manager)
         if not chat_history:
@@ -215,7 +215,7 @@ def setup_chat_routes(router: APIRouter, id, sdk_context: SDKContext):
 
         llm_instance, enable_multi_modal = get_llm_instance(id, sdk_context)
 
-        chat_manager = ChatManager(llm_instance, user_id=user_id, session_id="")
+        chat_manager = ChatManager(llm_instance, user_id=user_id, session_id="", agent_id=id)
         db_manager = DatabaseManager(db)
         all_chats = await chat_manager.get_all_chats_for_user(db_manager)
 

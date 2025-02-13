@@ -307,7 +307,7 @@ class Agent:
             media_type="text/event-stream",
         )
 
-    async def chat_history(self, user_id="", session_id="") -> dict[str, list]:
+    async def chat_history(self, user_id="", session_id=""):
         await self._ensure_utilities_loaded()
         db_manager = self.sdk_context.get_utility("db_manager")
 

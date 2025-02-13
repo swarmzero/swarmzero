@@ -167,14 +167,28 @@ async def test_chat_stream(basic_swarm, mock_sdk_context):
 @pytest.mark.asyncio
 async def test_chat_history(basic_swarm, mock_sdk_context):
     mock_chat_manager = AsyncMock(spec=ChatManager)
-    expected_history = {"messages": [{"role": "user", "content": "Test message"}]}
-    mock_chat_manager.get_all_chats_for_user = AsyncMock(return_value=expected_history)
+    expected_history_with_session = [{"role": "user", "content": "Test message", "timestamp": "2024-01-01T12:00:00Z"}]
+    expected_history_without_session = {
+        "test_session": [{"role": "user", "content": "Test message", "timestamp": "2024-01-01T12:00:00Z"}]
+    }
+
+    mock_chat_manager.get_messages = AsyncMock(return_value=expected_history_with_session)
+    mock_chat_manager.get_all_chats_for_user = AsyncMock(return_value=expected_history_without_session)
 
     with patch('swarmzero.swarm.ChatManager', return_value=mock_chat_manager):
-        history = await basic_swarm.chat_history(user_id="test_user", session_id="test_session")
+        # Test with session_id
+        history_with_session = await basic_swarm.chat_history(user_id="test_user", session_id="test_session")
+        assert history_with_session == expected_history_with_session
+        mock_chat_manager.get_messages.assert_awaited_once()
 
-        assert history == expected_history
-        mock_chat_manager.get_all_chats_for_user.assert_called_once()
+        # Reset mocks
+        mock_chat_manager.get_messages.reset_mock()
+        mock_chat_manager.get_all_chats_for_user.reset_mock()
+
+        # Test without session_id
+        history_without_session = await basic_swarm.chat_history(user_id="test_user")
+        assert history_without_session == expected_history_without_session
+        mock_chat_manager.get_all_chats_for_user.assert_awaited_once()
 
 
 @pytest.mark.asyncio

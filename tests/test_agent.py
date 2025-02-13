@@ -282,45 +282,31 @@ async def test_chat_history_method(agent):
     with patch("swarmzero.agent.ChatManager") as mock_chat_manager_class:
         mock_chat_manager_instance = mock_chat_manager_class.return_value
 
+        # Test with session_id
+        mock_chat_manager_instance.get_messages = AsyncMock(
+            return_value=[{"message": "Test message", "role": "user", "timestamp": "2024-01-01T12:00:00Z"}]
+        )
         mock_chat_manager_instance.get_all_chats_for_user = AsyncMock(
             return_value={
-                "default_chat": [
-                    {"message": "what's the capital of Nigeria?", "role": "user", "timestamp": "2024-01-01T12:00:00Z"},
-                    {
-                        "message": "The capital of Nigeria is Abuja.",
-                        "role": "assistant",
-                        "timestamp": "2024-01-01T12:01:00Z",
-                    },
-                    {"message": "what's the population?", "role": "user", "timestamp": "2024-01-01T12:02:00Z"},
-                    {
-                        "message": "Nigeria has a population of over 200 million.",
-                        "role": "assistant",
-                        "timestamp": "2024-01-01T12:03:00Z",
-                    },
-                ]
+                "default_chat": [{"message": "Test message", "role": "user", "timestamp": "2024-01-01T12:00:00Z"}]
             }
         )
 
-        chats = await agent.chat_history(user_id="default_user", session_id="default_chat")
+        # Test with session_id
+        chats_with_session = await agent.chat_history(user_id="default_user", session_id="test_session")
+        assert isinstance(chats_with_session, list)
+        assert len(chats_with_session) == 1
+        assert chats_with_session[0]["message"] == "Test message"
+        mock_chat_manager_instance.get_messages.assert_awaited_once_with(mock_db_manager)
 
-        agent.sdk_context.get_utility.assert_called_once_with("db_manager")
+        # Reset mocks
+        mock_chat_manager_instance.get_messages.reset_mock()
+        mock_chat_manager_instance.get_all_chats_for_user.reset_mock()
 
+        # Test without session_id
+        chats_without_session = await agent.chat_history(user_id="default_user")
+        assert isinstance(chats_without_session, dict)
+        assert "default_chat" in chats_without_session
+        assert len(chats_without_session["default_chat"]) == 1
+        assert chats_without_session["default_chat"][0]["message"] == "Test message"
         mock_chat_manager_instance.get_all_chats_for_user.assert_awaited_once_with(mock_db_manager)
-
-        expected_chat_history = {
-            "default_chat": [
-                {"message": "what's the capital of Nigeria?", "role": "user", "timestamp": "2024-01-01T12:00:00Z"},
-                {
-                    "message": "The capital of Nigeria is Abuja.",
-                    "role": "assistant",
-                    "timestamp": "2024-01-01T12:01:00Z",
-                },
-                {"message": "what's the population?", "role": "user", "timestamp": "2024-01-01T12:02:00Z"},
-                {
-                    "message": "Nigeria has a population of over 200 million.",
-                    "role": "assistant",
-                    "timestamp": "2024-01-01T12:03:00Z",
-                },
-            ]
-        }
-        assert chats == expected_chat_history

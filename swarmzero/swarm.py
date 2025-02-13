@@ -214,13 +214,16 @@ class Swarm:
             media_type="text/event-stream",
         )
 
-    async def chat_history(self, user_id="default_user", session_id="default_chat") -> dict[str, list]:
+    async def chat_history(self, user_id="", session_id="") -> dict[str, list]:
         await self._ensure_utilities_loaded()
         db_manager = self.sdk_context.get_utility("db_manager")
 
         chat_manager = ChatManager(self.__swarm, user_id=user_id, session_id=session_id, swarm_id=self.id)
 
-        chats = await chat_manager.get_all_chats_for_user(db_manager)
+        if session_id:
+            chats = await chat_manager.get_messages(db_manager)
+        else:
+            chats = await chat_manager.get_all_chats_for_user(db_manager)
         return chats
 
     def _format_tool_name(self, name: str) -> str:

@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 from typing import Any, Dict, List, Optional
@@ -115,14 +116,71 @@ class DatabaseManager:
         return SessionLocal()
 
     def _generate_model_class(self, table_name: str, columns: Dict[str, str]):
+        from sqlalchemy.dialects.postgresql import UUID
+
         metadata = MetaData()
         columns_list: List[Column] = []
         for name, column_type in columns.items():
-            column_type_class = self.sqlalchemy_types.get(column_type)
-            if not column_type_class:
-                raise ValueError(f"Unsupported column type: {column_type}")
-            columns_list.append(Column(name, column_type_class))
-        columns_list.insert(0, Column("id", Integer, primary_key=True))
+            # Extract type string from dict or use as is
+            if isinstance(column_type, dict):
+                type_str = column_type.get("type", "")
+                is_pk = column_type.get("primary_key", False)
+            else:
+                type_str = column_type
+                is_pk = False
+            # Quick fix: if it's agent_id or swarm_id, use UUID type regardless of what's in the definition
+            if name in ["agent_id", "swarm_id"]:
+                columns_list.append(Column(name, UUID(as_uuid=True), primary_key=is_pk))
+            elif name == "timestamp":
+                from sqlalchemy import TIMESTAMP
+
+                columns_list.append(Column(name, TIMESTAMP(timezone=True), primary_key=is_pk))
+            else:
+                type_str_norm = (
+                    "JSON"
+                    if type_str in ("JSON", "JSONB")
+                    else (
+                        "Integer"
+                        if type_str == "INTEGER"
+                        else (
+                            "String"
+                            if type_str == "TEXT"
+                            else (
+                                "Float"
+                                if type_str == "FLOAT"
+                                else (
+                                    "DateTime"
+                                    if type_str.startswith("TIMESTAMP")
+                                    else "Boolean" if type_str == "BOOLEAN" else type_str
+                                )
+                            )
+                        )
+                    )
+                )
+                column_type_class = self.sqlalchemy_types.get(type_str_norm)
+                if not column_type_class:
+                    raise ValueError(f"Unsupported column type: {type_str}")
+                columns_list.append(Column(name, column_type_class, primary_key=is_pk))
+        # Only add 'id' column if not already present, otherwise ensure a primary key exists
+        if "id" not in columns:
+            # Find a column with primary_key: True
+            pk_col = None
+            for col_name, col_def in columns.items():
+                if isinstance(col_def, dict) and col_def.get("primary_key"):
+                    pk_col = col_name
+                    break
+            if pk_col:
+                # Rebuild columns_list, marking the correct column as primary key
+                new_columns_list = []
+                for col in columns_list:
+                    if col.name == pk_col:
+                        new_columns_list.append(Column(col.name, col.type, primary_key=True))
+                    else:
+                        new_columns_list.append(col)
+                columns_list = new_columns_list
+            else:
+                # Fallback: add 'id' as Integer primary key if no PK found
+                columns_list.insert(0, Column("id", Integer, primary_key=True))
         table = Table(table_name, metadata, *columns_list)
         model = type(
             table_name.capitalize(),
@@ -179,13 +237,43 @@ class DatabaseManager:
             if not columns:
                 raise ValueError(f"Table '{table_name}' does not exist.")
 
+            # Convert UUID strings and timestamps for PostgreSQL
+            processed_data = data.copy()
+            for key, value in data.items():
+                if key in ["agent_id", "swarm_id"] and value is not None and isinstance(value, str):
+                    import uuid
+
+                    try:
+                        processed_data[key] = uuid.UUID(value)
+                    except ValueError:
+                        pass  # Keep as string if not valid UUID
+                elif key == "timestamp" and value is not None and isinstance(value, str):
+                    from datetime import datetime
+
+                    try:
+                        # Parse ISO format timestamp
+                        processed_data[key] = datetime.fromisoformat(value.replace('Z', '+00:00'))
+                    except ValueError:
+                        pass  # Keep as string if not valid timestamp
+
+            # Serialize dicts for JSON/JSONB columns
+            for col, col_type in columns.items():
+                # Handle both string and dict column type definitions
+                if isinstance(col_type, dict):
+                    type_val = col_type.get("type", "")
+                    col_type_str = type_val.lower() if isinstance(type_val, str) else ""
+                else:
+                    col_type_str = str(col_type).lower()
+                if col_type_str in ("json", "jsonb") and isinstance(processed_data.get(col), dict):
+                    processed_data[col] = json.dumps(processed_data[col])
+
             model, metadata = self._generate_model_class(table_name, columns)
             async with engine.begin() as conn:
                 await conn.run_sync(metadata.create_all)
 
             session = await self.get_session()
             async with session as session:
-                instance = model(**data)
+                instance = model(**processed_data)
                 session.add(instance)
                 await session.commit()
                 await session.refresh(instance)
@@ -226,7 +314,14 @@ class DatabaseManager:
                                 query = query.where(getattr(model, key)[sub_key] == sub_value)
                     else:
                         column = getattr(model, key)
-                        if isinstance(column.type, String) and len(values) == 1:
+                        # Check if this is a UUID field (agent_id, swarm_id) - use exact equality with proper casting
+                        if key in ["agent_id", "swarm_id"]:
+                            # For UUID fields, use exact equality with explicit casting
+                            from sqlalchemy import UUID, cast
+
+                            uuid_values = [cast(value, UUID) for value in values]
+                            query = query.filter(column.in_(uuid_values))
+                        elif isinstance(column.type, String) and len(values) == 1:
                             query = query.where(column.ilike(f"%{values[0]}%"))
                         else:
                             query = query.filter(column.in_(values))
@@ -266,9 +361,28 @@ class DatabaseManager:
             async with engine.begin() as conn:
                 await conn.run_sync(metadata.create_all)
 
+            # Convert UUID strings and timestamps for PostgreSQL
+            processed_data = new_data.copy()
+            for key, value in new_data.items():
+                if key in ["agent_id", "swarm_id"] and value is not None and isinstance(value, str):
+                    import uuid
+
+                    try:
+                        processed_data[key] = uuid.UUID(value)
+                    except ValueError:
+                        pass  # Keep as string if not valid UUID
+                elif key == "timestamp" and value is not None and isinstance(value, str):
+                    from datetime import datetime
+
+                    try:
+                        # Parse ISO format timestamp
+                        processed_data[key] = datetime.fromisoformat(value.replace('Z', '+00:00'))
+                    except ValueError:
+                        pass  # Keep as string if not valid timestamp
+
             instance = await self.db.get(model, row_id)
             if instance:
-                for key, value in new_data.items():
+                for key, value in processed_data.items():
                     setattr(instance, key, value)
                 await self.db.commit()
                 await self.db.refresh(instance)

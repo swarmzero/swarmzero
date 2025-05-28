@@ -645,8 +645,8 @@ class SDKContext:
             "resource_id": resource_id,
             "name": params["name"],
             "type": params["type"],
-            "config": config_data,
-            "state": {},  # Current state would go here
+            "config": json.dumps(config_data),  # Serialize dict to JSON
+            "state": json.dumps({}),  # Serialize dict to JSON
             "create_date": datetime.now(),
             "last_modified": datetime.now(),
         }

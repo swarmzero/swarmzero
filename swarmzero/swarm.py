@@ -47,24 +47,38 @@ class Swarm:
     __port: int
     __app: FastAPI
     __shutdown_event: Optional[asyncio.Event] = None
-    def __init__(self, *args, **kwargs):
-        self.id = kwargs.get("swarm_id", str(uuid.uuid4()))
-        self.name = kwargs["name"]
-        self.description = kwargs["description"]
-        self.instruction = kwargs["instruction"]
-        self.functions = kwargs["functions"]
-        self.__host = kwargs.get("host", "0.0.0.0")
-        self.__port = kwargs.get("port", 8001)
+    def __init__(self,
+        name: str,
+        description: str,
+        instruction: str,
+        functions: List[Callable],
+        agents: Optional[List[Agent]] = None,
+        llm: Optional[LLM] = None,
+        config_path="./swarmzero_config_example.toml",
+        swarm_id=os.getenv("SWARM_ID", ""),
+        sdk_context: Optional[SDKContext] = None,
+        max_iterations: Optional[int] = 10,
+        host: Optional[str] = None,
+        port: Optional[int] = None,
+        ):
+        self.id = swarm_id if swarm_id != "" else str(uuid.uuid4())
+        self.name = name
+        self.description = description
+        self.instruction = instruction
+        self.functions = functions
+        self.__host = host if host else "0.0.0.0"
+        self.__port = port if port else 8000
         self.__shutdown_event = asyncio.Event()
         self.__agents = AgentMap()
-        self.sdk_context = kwargs.get("sdk_context", SDKContext(config_path=kwargs.get("config_path", "./swarmzero_config_example.toml")))
+        self.sdk_context = sdk_context if sdk_context is not None else SDKContext(config_path=config_path)
         self.__config = self.sdk_context.get_config(self.name)
-        self.__llm = kwargs.get("llm", llm_from_config_without_agent(self.__config, self.sdk_context))
-        self.max_iterations = kwargs.get("max_iterations", 10)
+        self.__llm = llm if llm is not None else llm_from_config_without_agent(self.__config, self.sdk_context)
+        self.max_iterations = max_iterations
         self.__utilities_loaded = False
         self.sdk_context.load_default_utility()
 
-        agents = kwargs.get("agents", self.sdk_context.generate_agents_from_config())
+        if agents is None:
+            agents = self.sdk_context.generate_agents_from_config()
         if agents:
             for agent in agents:
                 agent.swarm_id = self.id

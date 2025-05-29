@@ -1,5 +1,6 @@
 [model]
-model = "gpt-4"  # Use OpenAI model
+# for Azure Open AI use azure/<azure-deployment-name>
+model = "gpt-4o"
 enable_multi_modal = false
 ollama_server_url = "http://localhost:11434"
 
@@ -16,12 +17,14 @@ type = "dev"
 [timeout]
 llm = 30
 
+# example of agent in a swarm
 [target_agent_id]
-model = "gpt-3.5-turbo"  
+model = "claude-3-5-sonnet-20240620"
+#model = "gpt-3.5-turbo"
 timeout = 15
 environment = "dev"
-enable_multi_modal = false
-ollama_server_url = "http://localhost:11434"
+enable_multi_modal = true
+ollama_server_url = 'http://123.456.78.90:11434'
 sample_prompts = [
     "What can you help me do?",
     "Which tools do you have access to?",

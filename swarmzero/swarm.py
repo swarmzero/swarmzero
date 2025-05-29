@@ -1,11 +1,16 @@
 import json
 import os
 import string
+import signal
+import asyncio
+import uvicorn
 import uuid
+import logging
 from typing import Any, Callable, Dict, List, Optional
 
 from dotenv import load_dotenv
-from fastapi import UploadFile
+from fastapi import UploadFile, FastAPI, APIRouter
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from langtrace_python_sdk import inject_additional_attributes
 from llama_index.core.agent import AgentRunner, ReActAgent
@@ -19,6 +24,8 @@ from swarmzero.llms.utils import llm_from_config_without_agent, llm_from_wrapper
 from swarmzero.sdk_context import SDKContext
 from swarmzero.server.routes.files import insert_files_to_index
 from swarmzero.utils import tools_from_funcs
+from swarmzero.server.routes.swarm_chat import setup_swarm_chat_routes
+
 
 load_dotenv()
 
@@ -36,9 +43,11 @@ class Swarm:
     __llm: LLM
     __agents: AgentMap
     __swarm: AgentRunner
-
-    def __init__(
-        self,
+    __host: str
+    __port: int
+    __app: FastAPI
+    __shutdown_event: Optional[asyncio.Event] = None
+    def __init__(self,
         name: str,
         description: str,
         instruction: str,
@@ -49,13 +58,18 @@ class Swarm:
         swarm_id=os.getenv("SWARM_ID", ""),
         sdk_context: Optional[SDKContext] = None,
         max_iterations: Optional[int] = 10,
-    ):
+        host: Optional[str] = None,
+        port: Optional[int] = None,
+        ):
         self.id = swarm_id if swarm_id != "" else str(uuid.uuid4())
         self.name = name
         self.description = description
         self.instruction = instruction
-        self.__agents = AgentMap()
         self.functions = functions
+        self.__host = host if host else "0.0.0.0"
+        self.__port = port if port else 8000
+        self.__shutdown_event = asyncio.Event()
+        self.__agents = AgentMap()
         self.sdk_context = sdk_context if sdk_context is not None else SDKContext(config_path=config_path)
         self.__config = self.sdk_context.get_config(self.name)
         self.__llm = llm if llm is not None else llm_from_config_without_agent(self.__config, self.sdk_context)
@@ -65,7 +79,6 @@ class Swarm:
 
         if agents is None:
             agents = self.sdk_context.generate_agents_from_config()
-
         if agents:
             for agent in agents:
                 agent.swarm_id = self.id
@@ -79,28 +92,35 @@ class Swarm:
                 }
 
             self.sdk_context.add_resource(self, resource_type="swarm")
-            self._build_swarm()
+            self._build_swarm()  
         else:
-            raise ValueError("no agents provided in params or config file")
+            raise ValueError("No agents provided in params or config file")
+
+        self.__app = FastAPI()
+        self.__setup_server()
 
     def _build_swarm(self):
-        query_engine_tools = (
-            [
-                QueryEngineTool(
-                    query_engine=agent_data["agent"],
-                    metadata=ToolMetadata(
-                        name=self._format_tool_name(agent_name),
-                        description=agent_data["description"],
-                    ),
-                )
-                for agent_name, agent_data in self.__agents.items()
-            ]
-            if self.__agents
-            else []
-        )
+        if not self.__agents:
+            logging.error("No agents available to build the swarm.")
+            raise ValueError("No agents available to build the swarm.")
+
+        query_engine_tools = [
+            QueryEngineTool(
+                query_engine=agent_data["agent"],
+                metadata=ToolMetadata(
+                    name=self._format_tool_name(agent_name),
+                    description=agent_data["description"],
+                ),
+            )
+            for agent_name, agent_data in self.__agents.items()
+        ]
 
         custom_tools = tools_from_funcs(funcs=self.functions)
         tools = custom_tools + query_engine_tools
+
+        if not tools:
+            logging.error("No tools available to build the swarm.")
+            raise ValueError("No tools available to build the swarm.")
 
         self.__swarm = ReActAgent.from_tools(
             tools=tools,
@@ -110,6 +130,7 @@ class Swarm:
             max_iterations=self.max_iterations,
             callback_manager=self.sdk_context.get_utility("callback_manager"),
         )
+    
 
     def add_agent(self, agent: Agent):
         if agent.name in self.__agents:
@@ -239,3 +260,47 @@ class Swarm:
         if not self.__utilities_loaded:
             await self.sdk_context.load_db_manager()
             self.__utilities_loaded = True
+    
+    def __setup_server(self):
+        self.__configure_cors()
+        self.__setup_routes()
+    
+    def __configure_cors(self):
+        self.__app.add_middleware(
+            CORSMiddleware,
+            allow_origins=["*"],
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
+    def __setup_routes(self):
+        router = APIRouter()
+        setup_swarm_chat_routes(router, self, self.sdk_context)
+        self.__app.include_router(router)
+
+        @self.__app.get("/health")
+        async def health_check():
+            return {"status": "healthy"}
+
+    async def run_server(self):
+        try:
+            self.__setup_signal_handlers()
+            config = uvicorn.Config(app=self.__app,
+                                    host=self.__host,
+                                    port=self.__port,
+                                    loop="asyncio")
+            server = uvicorn.Server(config)
+            await server.serve()
+        except Exception as e:
+            print(f"Error while running the server: {e}")
+    
+    def __setup_signal_handlers(self):
+        signal.signal(signal.SIGINT, self.__signal_handler)
+    def __signal_handler(self, signum, _):
+        asyncio.create_task(self.shutdown_procedures())
+    
+    async def shutdown_procedures(self):
+        tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
+        [task.cancel() for task in tasks]
+        await asyncio.gather(*tasks, return_exceptions=True)
+        self.__shutdown_event.set()

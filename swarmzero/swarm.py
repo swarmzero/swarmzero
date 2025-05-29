@@ -100,27 +100,23 @@ class Swarm:
         self.__setup_server()
 
     def _build_swarm(self):
-        if not self.__agents:
-            logging.error("No agents available to build the swarm.")
-            raise ValueError("No agents available to build the swarm.")
-
-        query_engine_tools = [
-            QueryEngineTool(
-                query_engine=agent_data["agent"],
-                metadata=ToolMetadata(
-                    name=self._format_tool_name(agent_name),
-                    description=agent_data["description"],
-                ),
-            )
-            for agent_name, agent_data in self.__agents.items()
-        ]
+        query_engine_tools = (
+            [
+                QueryEngineTool(
+                    query_engine=agent_data["agent"],
+                    metadata=ToolMetadata(
+                        name=self._format_tool_name(agent_name),
+                        description=agent_data["description"],
+                    ),
+                )
+                for agent_name, agent_data in self.__agents.items()
+            ]
+            if self.__agents
+            else []
+        )
 
         custom_tools = tools_from_funcs(funcs=self.functions)
         tools = custom_tools + query_engine_tools
-
-        if not tools:
-            logging.error("No tools available to build the swarm.")
-            raise ValueError("No tools available to build the swarm.")
 
         self.__swarm = ReActAgent.from_tools(
             tools=tools,
@@ -130,6 +126,7 @@ class Swarm:
             max_iterations=self.max_iterations,
             callback_manager=self.sdk_context.get_utility("callback_manager"),
         )
+
     
 
     def add_agent(self, agent: Agent):

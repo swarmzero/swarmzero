@@ -1,4 +1,3 @@
-import json
 import logging
 import os
 from typing import Any, Dict, List, Optional
@@ -256,16 +255,20 @@ class DatabaseManager:
                     except ValueError:
                         pass  # Keep as string if not valid timestamp
 
-            # Serialize dicts for JSON/JSONB columns
+            # Handle JSON/JSONB columns differently for SQLite and Postgres
+            import json
+
+            backend = engine.url.get_backend_name()
             for col, col_type in columns.items():
-                # Handle both string and dict column type definitions
+                # Extract type string from dict or use as is
                 if isinstance(col_type, dict):
-                    type_val = col_type.get("type", "")
-                    col_type_str = type_val.lower() if isinstance(type_val, str) else ""
+                    type_str = col_type.get("type", "")
                 else:
-                    col_type_str = str(col_type).lower()
-                if col_type_str in ("json", "jsonb") and isinstance(processed_data.get(col), dict):
-                    processed_data[col] = json.dumps(processed_data[col])
+                    type_str = col_type
+                if type_str in ("JSON", "JSONB") and isinstance(processed_data.get(col), dict):
+                    if backend == "sqlite":
+                        processed_data[col] = json.dumps(processed_data[col])
+                    # For Postgres, do nothing (let SQLAlchemy handle dicts natively)
 
             model, metadata = self._generate_model_class(table_name, columns)
             async with engine.begin() as conn:

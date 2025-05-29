@@ -1,3 +1,5 @@
+import asyncio
+
 import uuid
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 

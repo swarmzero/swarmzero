@@ -2123,6 +2123,7 @@ llama-index-core = ">=0.12.0,<0.13.0"
 llama-index-embeddings-openai = ">=0.3.0,<0.4.0"
 llama-index-llms-openai = ">=0.3.0,<0.4.0"
 
+
 [[package]]
 name = "llama-index-core"
 version = "0.12.16.post1"
@@ -2311,6 +2312,22 @@ files = [
 llama-index-core = ">=0.12.0,<0.13.0"
 llama-index-llms-openai = ">=0.3.9,<0.4.0"
 transformers = ">=4.37.0,<5.0.0"
+
+[[package]]
+name = "llama-index-llms-openrouter"
+version = "0.3.1"
+description = "llama-index llms openrouter integration"
+optional = false
+python-versions = "<4.0,>=3.9"
+groups = ["main"]
+files = [
+    {file = "llama_index_llms_openrouter-0.3.1-py3-none-any.whl", hash = "sha256:d243212c752760a6ece958d70e2f2a49f37896aedc3b7f44c29b44621b5aec09"},
+    {file = "llama_index_llms_openrouter-0.3.1.tar.gz", hash = "sha256:1731f2128a6da29565485bffa3617774b5d5cecc83c9399de58b50fab9d5f010"},
+]
+
+[package.dependencies]
+llama-index-core = ">=0.12.0,<0.13.0"
+llama-index-llms-openai-like = ">=0.3.1,<0.4.0"
 
 [[package]]
 name = "llama-index-multi-modal-llms-openai"

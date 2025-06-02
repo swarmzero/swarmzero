@@ -22,6 +22,7 @@ from llama_index.llms.mistralai import MistralAI
 from llama_index.llms.nebius import NebiusLLM as Nebius
 from llama_index.llms.ollama import Ollama
 from llama_index.llms.openai import OpenAI
+from llama_index.llms.openrouter import OpenRouter
 from llama_index.multi_modal_llms.openai import OpenAIMultiModal
 
 from swarmzero.config import Config
@@ -31,6 +32,7 @@ from swarmzero.llms.mistral import MistralLLM
 from swarmzero.llms.nebius import NebiuslLLM
 from swarmzero.llms.ollama import OllamaLLM
 from swarmzero.llms.openai import AzureOpenAILLM, OpenAILLM, OpenAIMultiModalLLM
+from swarmzero.llms.openrouter import OpenRouterLLM
 
 load_dotenv()
 
@@ -72,6 +74,15 @@ def _create_llm(llm_type: str, config: Config):
             azure_endpoint=azure_endpoint,
             api_key=api_key,
             api_version=api_version,
+            timeout=timeout,
+    elif llm_type == "OpenRouter":
+        api_key = os.getenv("OPENROUTER_API_KEY")
+        if not api_key:
+            logger.error("OPENROUTER_API_KEY is missing")
+            raise ValueError("OPENROUTER_API_KEY is required for OpenRouter")
+        return OpenRouter(
+            model=model,
+            api_key=api_key,
             timeout=timeout,
         )
     elif llm_type == "Nebius":
@@ -116,7 +127,6 @@ def _create_llm(llm_type: str, config: Config):
         raise ValueError("Unsupported LLM type")
 
 
-# used when `llm` is provided in Agent or Swarm creation
 def llm_from_wrapper(llm_wrapper: LLM, config: Config):
     if isinstance(llm_wrapper, OpenAILLM):
         return _create_llm("OpenAI", config)
@@ -130,12 +140,13 @@ def llm_from_wrapper(llm_wrapper: LLM, config: Config):
         return _create_llm("Mistral", config)
     elif isinstance(llm_wrapper, NebiuslLLM):
         return _create_llm("Nebius", config)
+    elif isinstance(llm_wrapper, OpenRouterLLM):
+        return _create_llm("OpenRouter", config)
     else:
         logger.error("Unsupported LLM wrapper type")
         raise ValueError("Unsupported LLM wrapper type")
 
 
-# default to config file if `llm` is not provided in Agent or Swarm creation
 def llm_from_config(config: Config):
     model = config.get("model")
 
@@ -157,6 +168,9 @@ def llm_from_config(config: Config):
     elif "nebius" in model:
         logger.info("Nebius model selected")
         return _create_llm("Nebius", config)
+    elif "openrouter" in model:
+        logger.info("OpenRouter model selected")
+        return _create_llm("OpenRouter", config)
     else:
         logger.info("Default OpenAI model selected")
         return _create_llm("OpenAI", config)
@@ -187,6 +201,9 @@ def llm_from_config_without_agent(config: Config, sdk_context: SDKContext):
     elif "nebius" in model:
         logger.info("NebiuslLLM selected")
         return NebiuslLLM(llm=llm_from_config(config), sdk_context=sdk_context)
+    elif "openrouter" in model:
+        logger.info("OpenRouterLLM selected")
+        return OpenRouterLLM(llm=llm_from_config(config), sdk_context=sdk_context)
     else:
         logger.info("Default OpenAILLM selected")
         return OpenAILLM(llm=llm_from_config(config), sdk_context=sdk_context)

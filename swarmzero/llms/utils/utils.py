@@ -75,6 +75,7 @@ def _create_llm(llm_type: str, config: Config):
             api_key=api_key,
             api_version=api_version,
             timeout=timeout,
+        )
     elif llm_type == "OpenRouter":
         api_key = os.getenv("OPENROUTER_API_KEY")
         if not api_key:

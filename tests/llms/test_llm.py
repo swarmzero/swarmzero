@@ -7,20 +7,24 @@ from llama_index.core.agent.runner.base import AgentRunner
 from llama_index.core.objects import ObjectIndex
 from llama_index.llms.anthropic import Anthropic
 from llama_index.llms.azure_openai import AzureOpenAI
+from llama_index.llms.bedrock import Bedrock
 from llama_index.llms.gemini import Gemini
 from llama_index.llms.mistralai import MistralAI
 from llama_index.llms.nebius import NebiusLLM as Nebius
 from llama_index.llms.ollama import Ollama
 from llama_index.llms.openai import OpenAI
+from llama_index.llms.openrouter import OpenRouter
 from llama_index.multi_modal_llms.openai import OpenAIMultiModal
 
 from swarmzero.llms import AzureOpenAILLM
+from swarmzero.llms.bedrock import BedrockLLM
 from swarmzero.llms.claude import ClaudeLLM
 from swarmzero.llms.gemini import GeminiLLM
 from swarmzero.llms.mistral import MistralLLM
 from swarmzero.llms.nebius import NebiuslLLM
 from swarmzero.llms.ollama import OllamaLLM
 from swarmzero.llms.openai import OpenAILLM, OpenAIMultiModalLLM
+from swarmzero.llms.openrouter import OpenRouterLLM
 from swarmzero.sdk_context import SDKContext
 
 
@@ -64,6 +68,16 @@ def tool_retriever(tools):
         )
         tool_retriever = vectorstore_object.as_retriever(similarity_top_k=3)
         return tool_retriever
+
+
+@pytest.fixture
+def agent():
+    mock_agent = MagicMock()
+    mock_agent._Agent__agent = MagicMock(spec=AgentRunner)
+    def mock_assign_agent(tools, tool_retriever):
+        mock_agent._Agent__agent = MagicMock(spec=AgentRunner)
+    mock_agent._assign_agent = mock_assign_agent
+    return mock_agent
 
 
 def test_openai_llm_initialization(tools, instruction, sdk_context):
@@ -166,3 +180,51 @@ def test_retrieval_ollamallm_initialization(empty_tools, instruction, tool_retri
     assert ollamallm.tools == empty_tools
     assert instruction in ollamallm.system_prompt
     assert ollamallm.tool_retriever == tool_retriever
+
+
+def test_bedrock_llm_initialization(tools, instruction, sdk_context):
+    with patch('llama_index.llms.bedrock.Bedrock') as mock_bedrock:
+        bedrock_llm = BedrockLLM(mock_bedrock.return_value, tools, instruction, sdk_context=sdk_context)
+        assert bedrock_llm.agent is not None
+        assert isinstance(bedrock_llm.agent, llama_index.core.agent.runner.base.AgentRunner)
+        assert bedrock_llm.tools == tools
+        assert instruction in bedrock_llm.system_prompt
+
+
+def test_openrouter_llm_initialization(tools, instruction, sdk_context):
+    with patch('llama_index.llms.openrouter.OpenRouter') as mock_openrouter:
+        openrouter_llm = OpenRouterLLM(mock_openrouter.return_value, tools, instruction, sdk_context=sdk_context)
+        assert openrouter_llm.agent is not None
+        assert isinstance(openrouter_llm.agent, llama_index.core.agent.runner.base.AgentRunner)
+        assert openrouter_llm.tools == tools
+        assert instruction in openrouter_llm.system_prompt
+
+
+def test_assign_agent(agent):
+    with (
+        patch("swarmzero.llms.openai.OpenAIMultiModalLLM") as mock_openai_multimodal,
+        patch("swarmzero.llms.openai.OpenAILLM") as mock_openai_llm,
+        patch("swarmzero.llms.claude.ClaudeLLM") as mock_claude_llm,
+        patch("swarmzero.llms.ollama.OllamaLLM") as mock_ollama_llm,
+        patch("swarmzero.llms.mistral.MistralLLM") as mock_mistral_llm,
+        patch("swarmzero.llms.bedrock.BedrockLLM") as mock_bedrock_llm,
+        patch("swarmzero.llms.openrouter.OpenRouterLLM") as mock_openrouter_llm,
+    ):
+        models = [
+            ("gpt-4o", mock_openai_multimodal),
+            ("gpt-3.5-turbo", mock_openai_llm),
+            ("claude-3-opus-20240229", mock_claude_llm),
+            ("llama-2", mock_ollama_llm),
+            ("mistral-large-latest", mock_mistral_llm),
+            ("gpt-4", mock_openai_llm),
+            ("bedrock/anthropic.claude-3-sonnet", mock_bedrock_llm),
+            ("openrouter/meta-llama/Llama-2-70b-chat-hf", mock_openrouter_llm),
+        ]
+
+        tools = MagicMock()
+        tool_retriever = MagicMock()
+
+        for model_name, expected_mock_class in models:
+            with patch("swarmzero.config.Config.get", return_value=model_name):
+                agent._assign_agent(tools, tool_retriever)
+                assert isinstance(agent._Agent__agent, AgentRunner)

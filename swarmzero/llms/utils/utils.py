@@ -126,7 +126,7 @@ def _create_llm(llm_type: str, config: Config):
         logger.error("Unsupported LLM type")
         raise ValueError("Unsupported LLM type")
 
-
+# used when `llm` is provided in Agent or Swarm creation
 def llm_from_wrapper(llm_wrapper: LLM, config: Config):
     if isinstance(llm_wrapper, OpenAILLM):
         return _create_llm("OpenAI", config)
@@ -146,7 +146,7 @@ def llm_from_wrapper(llm_wrapper: LLM, config: Config):
         logger.error("Unsupported LLM wrapper type")
         raise ValueError("Unsupported LLM wrapper type")
 
-
+# default to config file if `llm` is not provided in Agent or Swarm creation
 def llm_from_config(config: Config):
     model = config.get("model")
 

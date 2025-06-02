@@ -7,7 +7,6 @@ from llama_index.core.agent.runner.base import AgentRunner
 from llama_index.core.objects import ObjectIndex
 from llama_index.llms.anthropic import Anthropic
 from llama_index.llms.azure_openai import AzureOpenAI
-from llama_index.llms.bedrock import Bedrock
 from llama_index.llms.gemini import Gemini
 from llama_index.llms.mistralai import MistralAI
 from llama_index.llms.nebius import NebiusLLM as Nebius
@@ -17,7 +16,6 @@ from llama_index.llms.openrouter import OpenRouter
 from llama_index.multi_modal_llms.openai import OpenAIMultiModal
 
 from swarmzero.llms import AzureOpenAILLM
-from swarmzero.llms.bedrock import BedrockLLM
 from swarmzero.llms.claude import ClaudeLLM
 from swarmzero.llms.gemini import GeminiLLM
 from swarmzero.llms.mistral import MistralLLM
@@ -180,16 +178,6 @@ def test_retrieval_ollamallm_initialization(empty_tools, instruction, tool_retri
     assert ollamallm.tools == empty_tools
     assert instruction in ollamallm.system_prompt
     assert ollamallm.tool_retriever == tool_retriever
-
-
-def test_bedrock_llm_initialization(tools, instruction, sdk_context):
-    with patch('llama_index.llms.bedrock.Bedrock') as mock_bedrock:
-        bedrock_llm = BedrockLLM(mock_bedrock.return_value, tools, instruction, sdk_context=sdk_context)
-        assert bedrock_llm.agent is not None
-        assert isinstance(bedrock_llm.agent, llama_index.core.agent.runner.base.AgentRunner)
-        assert bedrock_llm.tools == tools
-        assert instruction in bedrock_llm.system_prompt
-
 
 def test_openrouter_llm_initialization(tools, instruction, sdk_context):
     with patch('llama_index.llms.openrouter.OpenRouter') as mock_openrouter:

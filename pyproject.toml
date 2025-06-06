@@ -37,9 +37,9 @@ docx2txt = "0.8"
 xlrd = "2.0.1"
 redis = "^5.2.1"
 colorama = "^0.4.6"
-requests = "2.32.3"
-boto3 = "^1.34.27"
-types-boto3 = "^1.0.2"
+requests = "^2.32.3"
+boto3 = "^1.37.3"
+types-boto3 = "^1.38.23"
 llama-index-llms-openrouter = "^0.3.1"
 
 [tool.poetry.extras]

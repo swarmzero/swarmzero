@@ -6,7 +6,9 @@ import pytest
 
 from swarmzero.agent import Agent
 from swarmzero.sdk_context import SDKContext
-
+import tempfile
+import shutil
+import os
 
 @pytest.fixture
 def sdk_context():
@@ -19,7 +21,6 @@ def sdk_context():
         }
         context = SDKContext("./swarmzero_config_test.toml")
         return context
-
 
 def test_load_default_config(sdk_context):
     default_config = sdk_context.load_default_config()
@@ -37,6 +38,7 @@ def test_load_agent_configs(sdk_context):
 
 def test_set_config(sdk_context):
     sdk_context.set_config("test_agent", "model", "gpt-4")
+    sdk_context.save_config()
     assert sdk_context.agent_configs["test_agent"]["model"] == "gpt-4"
 
 

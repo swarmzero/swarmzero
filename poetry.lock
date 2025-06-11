@@ -6619,4 +6619,4 @@ web3 = []
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<3.13"
-content-hash = "634101d5f1c91a98a0deca49560076bfe42d9e58c278af62a0d193ea8c330a35"
+content-hash = "ff1fa3993fa4474f378e8e7f0aee047ada5a1b002049dfe678015e3e3542a2cd"

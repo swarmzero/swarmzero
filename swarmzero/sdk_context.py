@@ -2,6 +2,8 @@ import importlib
 import json
 from datetime import datetime
 from typing import Any, Optional
+import logging
+import os
 
 from llama_index.core.callbacks import CallbackManager
 
@@ -13,7 +15,15 @@ from swarmzero.database.database import (
     setup_chats_table,
 )
 from swarmzero.utils import EventCallbackHandler, IndexStore
+from datetime import datetime, timezone
+import logging
 
+class TimezoneFormatter(logging.Formatter):
+    def formatTime(self, record, datefmt=None):
+        dt_utc = datetime.fromtimestamp(record.created, tz=timezone.utc) # Use the imported timezone
+        
+        milliseconds = f"{dt_utc.microsecond // 1000:03d}"
+        return dt_utc.strftime('%Y-%m-%dT%H:%M:%S.') + milliseconds + 'Z'
 
 class SDKContext:
 
@@ -43,6 +53,8 @@ class SDKContext:
         self.resources_info = {}
         self.utilities = {}
         self.attributes = {}
+
+        self.configure_logging()
 
     def load_default_config(self):
         """
@@ -659,3 +671,82 @@ class SDKContext:
 
         # Insert the data into the table
         await db_manager.insert_data("config", {"name": "default", "data": config_data, "create_date": datetime.now()})
+    
+    def get_log_level(self):
+        """
+        Get the log level from environment variable, then [logging].log_level from config,
+        then [log].level from config, or default to INFO.
+        
+        :return: The log level as a string (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+        """
+        
+        env_log_level = os.environ.get("SWARMZERO_LOG_LEVEL")
+        if env_log_level:
+            return env_log_level.upper()
+        
+        logging_section = self.config.config.get("logging", {})
+        config_log_level = logging_section.get("log_level")
+        
+        if config_log_level:
+            return str(config_log_level).upper()
+
+        return "INFO"
+
+
+    def get_logging_config(self):
+        """
+        Get the logging configuration for the SDK context.
+
+        :return: A dictionary with logging configuration settings.
+        """
+        log_section = self.config.config.get("logging", {})
+
+        return {
+            "log_to_file":log_section.get("log_to_file", False),
+            "log_file_path": log_section.get("log_file_path", "swarmzero.log"),
+            "log_level": self.get_log_level() 
+        }
+    
+    def configure_logging(self):
+        """
+        Configure logging based on the settings in the configuration file.
+        """
+        logging.captureWarnings(True)
+        logging_config = self.get_logging_config()
+        
+        log_level_str = logging_config["log_level"]
+        numeric_log_level = getattr(logging, log_level_str.upper(), logging.INFO)
+        
+        root_logger = logging.getLogger()
+        root_logger.setLevel(numeric_log_level) 
+
+        formatter = TimezoneFormatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+
+        console_handler_exists = any(isinstance(h, logging.StreamHandler) for h in root_logger.handlers)
+        
+        if not console_handler_exists:
+            console_handler = logging.StreamHandler()
+            console_handler.setFormatter(formatter)
+            root_logger.addHandler(console_handler)
+        else: 
+            for handler in root_logger.handlers:
+                if isinstance(handler, logging.StreamHandler):
+                    handler.setFormatter(formatter) 
+
+        if logging_config["log_to_file"]:
+            log_file_path = logging_config["log_file_path"]
+            abs_log_file_path = os.path.abspath(log_file_path)
+            
+            file_handler_instance = None
+            for h in root_logger.handlers:
+                if isinstance(h, logging.FileHandler) and h.baseFilename == abs_log_file_path:
+                    file_handler_instance = h
+                    break
+            
+            if file_handler_instance is None:
+                file_handler = logging.FileHandler(log_file_path)
+                file_handler.setFormatter(formatter)
+                root_logger.addHandler(file_handler)
+                logging.info(f"Logging to file: {log_file_path}")
+            else:
+                file_handler_instance.setFormatter(formatter)

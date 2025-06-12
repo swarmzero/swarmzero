@@ -20,7 +20,7 @@ import logging
 
 class TimezoneFormatter(logging.Formatter):
     def formatTime(self, record, datefmt=None):
-        dt_utc = datetime.fromtimestamp(record.created, tz=timezone.utc) # Use the imported timezone
+        dt_utc = datetime.fromtimestamp(record.created, tz=timezone.utc)
         
         milliseconds = f"{dt_utc.microsecond // 1000:03d}"
         return dt_utc.strftime('%Y-%m-%dT%H:%M:%S.') + milliseconds + 'Z'

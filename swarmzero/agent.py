@@ -486,6 +486,8 @@ class Agent:
                 agent_class = MistralLLM
             elif "nebius" in model:
                 agent_class = NebiuslLLM
+            elif "openrouter" in model:
+                agent_class = OpenRouterLLM
             else:
                 agent_class = OpenAILLM
 

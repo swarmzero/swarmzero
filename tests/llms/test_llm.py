@@ -12,6 +12,7 @@ from llama_index.llms.mistralai import MistralAI
 from llama_index.llms.nebius import NebiusLLM as Nebius
 from llama_index.llms.ollama import Ollama
 from llama_index.llms.openai import OpenAI
+from llama_index.llms.openrouter import OpenRouter
 from llama_index.multi_modal_llms.openai import OpenAIMultiModal
 
 from swarmzero.llms import AzureOpenAILLM
@@ -21,6 +22,7 @@ from swarmzero.llms.mistral import MistralLLM
 from swarmzero.llms.nebius import NebiuslLLM
 from swarmzero.llms.ollama import OllamaLLM
 from swarmzero.llms.openai import OpenAILLM, OpenAIMultiModalLLM
+from swarmzero.llms.openrouter import OpenRouterLLM
 from swarmzero.sdk_context import SDKContext
 
 
@@ -166,3 +168,11 @@ def test_retrieval_ollamallm_initialization(empty_tools, instruction, tool_retri
     assert ollamallm.tools == empty_tools
     assert instruction in ollamallm.system_prompt
     assert ollamallm.tool_retriever == tool_retriever
+
+def test_openrouter_llm_initialization(tools, instruction, sdk_context):
+    with patch('llama_index.llms.openrouter.OpenRouter') as mock_openrouter:
+        openrouter_llm = OpenRouterLLM(mock_openrouter.return_value, tools, instruction, sdk_context=sdk_context)
+        assert openrouter_llm.agent is not None
+        assert isinstance(openrouter_llm.agent, llama_index.core.agent.runner.base.AgentRunner)
+        assert openrouter_llm.tools == tools
+        assert instruction in openrouter_llm.system_prompt

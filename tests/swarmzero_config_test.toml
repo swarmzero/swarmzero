@@ -12,3 +12,7 @@ level = "INFO"
 
 [test_agent]
 model = "gpt-4"
+
+[logging]
+log_file_path = "swarmzero.log"
+log_level = "INFO"

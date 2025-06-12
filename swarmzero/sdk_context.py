@@ -692,7 +692,6 @@ class SDKContext:
 
         return "INFO"
 
-
     def get_logging_config(self):
         """
         Get the logging configuration for the SDK context.
@@ -702,8 +701,7 @@ class SDKContext:
         log_section = self.config.config.get("logging", {})
 
         return {
-            "log_to_file":log_section.get("log_to_file", False),
-            "log_file_path": log_section.get("log_file_path", "swarmzero.log"),
+            "log_file_path": log_section.get("log_file_path", None),
             "log_level": self.get_log_level() 
         }
     
@@ -733,7 +731,7 @@ class SDKContext:
                 if isinstance(handler, logging.StreamHandler):
                     handler.setFormatter(formatter) 
 
-        if logging_config["log_to_file"]:
+        if logging_config["log_file_path"] and self._is_valid_path(logging_config["log_file_path"]):
             log_file_path = logging_config["log_file_path"]
             abs_log_file_path = os.path.abspath(log_file_path)
             
@@ -750,3 +748,11 @@ class SDKContext:
                 logging.info(f"Logging to file: {log_file_path}")
             else:
                 file_handler_instance.setFormatter(formatter)
+
+    def _is_valid_path(self, path_param):
+        if os.path.exists(path_param):
+            return True
+        
+        directory = os.path.dirname(path_param) or '.'
+        
+        return os.path.isdir(directory) and os.access(directory, os.W_OK)

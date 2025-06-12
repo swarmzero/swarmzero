@@ -30,3 +30,8 @@ sample_prompts = [
     "Which tools do you have access to?",
     "What are your capabilities?"
 ]
+
+[logging]
+log_to_file = true
+log_file_path = "swarmzero.log"
+log_level = "INFO"

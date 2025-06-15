@@ -78,9 +78,13 @@ def _create_llm(llm_type: str, config: Config):
         )
     elif llm_type == "OpenRouter":
         api_key = os.getenv("OPENROUTER_API_KEY")
+        model = os.getenv("OPENROUTER_MODEL")
         if not api_key:
             logger.error("OPENROUTER_API_KEY is missing")
             raise ValueError("OPENROUTER_API_KEY is required for OpenRouter")
+        if not model:
+            logger.error("OPENROUTER_MODEL is missing")
+            raise ValueError("OPENROUTER_MODEL is required for OpenRouter")
         return OpenRouter(
             model=model,
             api_key=api_key,

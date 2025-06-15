@@ -241,6 +241,38 @@ if __name__ == "__main__":
     asyncio.run(chat_with_swarm())
 ````
 
+### Workflow
+
+You can orchestrate agents, swarms, and tools in a flexible workflow. Each step
+can run sequentially, in parallel, conditionally, or in a loop.
+
+````python
+from swarmzero import Workflow, WorkflowStep, StepMode
+
+# agent1, agent2, agent3, and agent4 are pre-defined Agent instances
+
+workflow = Workflow(
+    name="Research Workflow",
+    instruction="Demo workflow",
+    steps=[
+        WorkflowStep(runner=agent1.chat),
+        WorkflowStep(runner=[agent2.chat, agent3.chat], mode=StepMode.PARALLEL),
+        WorkflowStep(
+            runner=agent4.chat,
+            mode=StepMode.LOOP,
+            condition=lambda res: "done" in res,
+            max_iterations=5,
+        ),
+    ],
+)
+
+async def run_workflow():
+    return await workflow.run("Start research")
+
+if __name__ == "__main__":
+    asyncio.run(run_workflow())
+````
+
 ### Adding Retriever
 
 You can add retriever tools to create vector embeddings and retrieve semantic information. It will create vector index for every pdf documents under 'swarmzero-data/files/user' folder and can filter files with required_exts parameter.

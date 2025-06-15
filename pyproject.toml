@@ -72,4 +72,4 @@ skip-string-normalization = true
 [tool.isort]
 profile = "black"
 skip_gitignore = true
-skip_glob = ["swarmzero/experimental/*", "tests"]
+skip_glob = ["tests"]

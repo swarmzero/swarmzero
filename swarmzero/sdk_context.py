@@ -1,5 +1,6 @@
 import importlib
 import json
+import os
 from datetime import datetime
 from typing import Any, Optional
 
@@ -30,12 +31,19 @@ class SDKContext:
     This includes configuration settings, resources, and utilities.
     """
 
-    def __init__(self, config_path: Optional[str] = "./swarmzero_config_example.toml"):
-        """
-        Initialize the SDKContext with a path to a TOML configuration file.
+    def __init__(self, config_path: Optional[str] = None):
+        """Initialize the SDKContext with a TOML configuration file.
+
+        If ``config_path`` is not provided, the default example configuration
+        located in the project root will be used regardless of the current
+        working directory.
 
         :param config_path: Path to the TOML configuration file.
         """
+        if config_path is None:
+            root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+            config_path = os.path.join(root_dir, "swarmzero_config_example.toml")
+
         self.config = Config(config_path)
         self.default_config = self.load_default_config()
         self.agent_configs = self.load_agent_configs()

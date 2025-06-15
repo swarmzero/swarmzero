@@ -1,5 +1,6 @@
 import importlib
 import json
+import os
 from datetime import datetime
 from typing import Any, Optional
 
@@ -30,12 +31,19 @@ class SDKContext:
     This includes configuration settings, resources, and utilities.
     """
 
-    def __init__(self, config_path: Optional[str] = "./swarmzero_config_example.toml"):
-        """
-        Initialize the SDKContext with a path to a TOML configuration file.
+    def __init__(self, config_path: Optional[str] = None):
+        """Initialize the SDKContext with a TOML configuration file.
+
+        If ``config_path`` is not provided, the default example configuration
+        located in the project root will be used regardless of the current
+        working directory.
 
         :param config_path: Path to the TOML configuration file.
         """
+        if config_path is None:
+            root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+            config_path = os.path.join(root_dir, "swarmzero_config_example.toml")
+
         self.config = Config(config_path)
         self.default_config = self.load_default_config()
         self.agent_configs = self.load_agent_configs()
@@ -180,6 +188,7 @@ class SDKContext:
         """
         from swarmzero.agent import Agent
         from swarmzero.swarm import Swarm
+        from swarmzero.workflow import Workflow
 
         if isinstance(resource, Agent) and resource_type == "agent":
             resource_info = {
@@ -217,6 +226,17 @@ class SDKContext:
             self.add_resource_info(resource_info)
             for function in resource.functions:
                 self.add_resource(function, resource_type="tool")
+        elif isinstance(resource, Workflow) and resource_type == "workflow":
+            resource_info = {
+                "id": resource.id,
+                "name": resource.name,
+                "type": resource_type,
+                "instruction": resource.instruction,
+                "description": resource.description,
+                "steps": [{"name": step.name, "mode": step.mode.name} for step in resource.steps],
+            }
+            self.resources[resource.id] = {"init_params": resource_info, "object": resource}
+            self.add_resource_info(resource_info)
         elif resource_type == "tool" and callable(resource):
             resource_info = {"name": resource.__name__, "type": resource_type, "doc": resource.__doc__}
             self.resources[resource.__name__] = {"init_params": resource_info, "object": resource}
@@ -358,6 +378,32 @@ class SDKContext:
                 agents=agents,
                 swarm_id=params["id"],
                 sdk_context=self,
+            )
+            self.resources[name]["object"] = resource_obj
+
+        # Third pass: Restore workflows
+        from swarmzero.workflow import StepMode, Workflow, WorkflowStep
+
+        for name, resource in list(self.resources.items()):
+            if not isinstance(resource, dict) or resource.get("object") is not None:
+                continue
+
+            params = resource["init_params"]
+            if params["type"] != "workflow":
+                continue
+
+            steps = [
+                WorkflowStep(runner=None, mode=StepMode[step["mode"]], name=step["name"])
+                for step in params.get("steps", [])
+            ]
+            resource_obj = Workflow(
+                name=params["name"],
+                steps=steps,
+                instruction=params.get("instruction", ""),
+                description=params.get("description", ""),
+                default_llm=None,
+                sdk_context=self,
+                workflow_id=params["id"],
             )
             self.resources[name]["object"] = resource_obj
 

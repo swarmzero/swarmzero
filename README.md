@@ -273,6 +273,29 @@ if __name__ == "__main__":
     asyncio.run(run_workflow())
 ````
 
+#### Nested Workflows
+
+Workflow steps can themselves be workflows. This allows complex pipelines to be
+composed from smaller ones.
+
+````python
+inner = Workflow(
+    name="Inner",
+    steps=[WorkflowStep(runner=agent1.chat)],
+)
+
+outer = Workflow(
+    name="Outer",
+    steps=[WorkflowStep(runner=inner)],
+)
+
+async def run_nested():
+    return await outer.run("start")
+
+if __name__ == "__main__":
+    asyncio.run(run_nested())
+````
+
 ### Adding Retriever
 
 You can add retriever tools to create vector embeddings and retrieve semantic information. It will create vector index for every pdf documents under 'swarmzero-data/files/user' folder and can filter files with required_exts parameter.

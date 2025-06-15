@@ -114,3 +114,16 @@ async def test_loop_until_condition():
     result = await wf.run(0)
     assert result >= 2
     assert counter["i"] <= 2
+
+
+@pytest.mark.asyncio
+async def test_nested_workflow():
+    async def inner(prompt, **kwargs):
+        return prompt + 1
+
+    inner_wf = Workflow(name="inner", steps=[WorkflowStep(runner=inner)])
+
+    outer_wf = Workflow(name="outer", steps=[WorkflowStep(runner=inner_wf)])
+
+    result = await outer_wf.run(0)
+    assert result == 1

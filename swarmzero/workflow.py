@@ -64,9 +64,23 @@ class Workflow:
         sdk_context: SDKContext,
     ) -> Any:
         if hasattr(runner, "chat"):
-            result = runner.chat(prompt, user_id=user_id, session_id=session_id, llm=llm, sdk_context=sdk_context)
+            result = runner.chat(
+                prompt,
+                user_id=user_id,
+                session_id=session_id,
+                llm=llm,
+                sdk_context=sdk_context,
+            )
+        elif isinstance(runner, Workflow) or hasattr(runner, "run"):
+            result = runner.run(prompt)
         else:
-            result = runner(prompt, user_id=user_id, session_id=session_id, llm=llm, sdk_context=sdk_context)
+            result = runner(
+                prompt,
+                user_id=user_id,
+                session_id=session_id,
+                llm=llm,
+                sdk_context=sdk_context,
+            )
         if asyncio.iscoroutine(result):
             return await result
         return result

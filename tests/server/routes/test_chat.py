@@ -4,7 +4,7 @@ from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi import APIRouter, FastAPI, status
-from httpx import AsyncClient
+from httpx import ASGITransport, AsyncClient
 from llama_index.core.llms import ChatMessage, MessageRole
 
 from swarmzero.sdk_context import SDKContext
@@ -52,7 +52,8 @@ def app(agent, sdk_context):
 
 @pytest.fixture
 async def client(app):
-    async with AsyncClient(app=app, base_url="http://test") as test_client:
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as test_client:
         yield test_client
 
 

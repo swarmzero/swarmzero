@@ -7,6 +7,7 @@ from swarmzero.server.routes import files
 
 supported_exts = [".md", ".mdx", ".txt", ".csv", ".docx", ".pdf"]
 
+
 class RetrieverBase:
     def __init__(
         self,

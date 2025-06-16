@@ -101,12 +101,14 @@ First import the `Agent` class:
 
 ```python
 from swarmzero import Agent
+
 ```
 
 Load your environment variables:
 
 ```python
 from dotenv import load_dotenv
+
 load_dotenv()
 ```
 
@@ -203,11 +205,11 @@ if __name__ == "__main__":
 You can create a swarm of agents to collaborate on complex tasks. Here's an example of how to set up and use a swarm:
 
 ````python
-from swarmzero.swarm import Swarm
+import asyncio
+
 from swarmzero.agent import Agent
 from swarmzero.sdk_context import SDKContext
-
-import asyncio
+from swarmzero.swarm import Swarm
 
 # Create SDK Context
 sdk_context = SDKContext(config_path="./swarmzero_config_example.toml")
@@ -249,8 +251,9 @@ You can add retriever tools to create vector embeddings and retrieve semantic in
 - SwarmZero agent supports 4 type of retriever (basic, chroma, pinecone-serverless, pinecone-pod) and controlled with retrieval_tool parameter.
 
 ````python
-from swarmzero import Agent
 from dotenv import load_dotenv
+
+from swarmzero import Agent
 
 load_dotenv()
 
@@ -275,8 +278,25 @@ if __name__ == "__main__":
     --form 'user_id="test"' \
     --form 'session_id="test"' \
     --form 'chat_data={ "messages": [ { "role": "user", "content": "Can you summarise the documents?" } ] }'
-    ```
+```
     """
+````
+
+### Agentic Memory with Mem0
+
+SwarmZero can optionally persist chat history using Mem0. Enable this by setting
+`memory_provider="mem0"` and defining `MEM0_API_KEY`, `MEM0_HOST`,
+`MEM0_PROJECT_ID`, and `MEM0_ORG_ID` in your environment.
+
+````python
+from dotenv import load_dotenv
+
+from swarmzero import Agent
+
+load_dotenv()
+
+agent = Agent(name="memory-test", functions=[], memory_provider="mem0")
+agent.run()
 ````
 
 
@@ -325,6 +345,8 @@ If you want to contribute to the codebase, you would need to set up your dev env
 - Copy the contents of [.env.example](.env.example) into your new .env file
 - API keys for third-party tools are not provided.
   - `OPENAI_API_KEY` from OpenAI
+  - `MEM0_API_KEY` from Mem0 (optional for agentic memory)
+  - `MEMORY_PROVIDER` to enable external memory (e.g. "mem0")
 - If you don't have Poetry installed, you can install it using the following commands:
 
 ```sh

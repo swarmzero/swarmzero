@@ -3,10 +3,10 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi import APIRouter, FastAPI
-from httpx import AsyncClient
+from httpx import ASGITransport, AsyncClient
 
-from swarmzero.server.routes.vectorindex import setup_vectorindex_routes
 from swarmzero.sdk_context import SDKContext
+from swarmzero.server.routes.vectorindex import setup_vectorindex_routes
 
 
 @pytest.fixture(scope="module")
@@ -22,7 +22,8 @@ def app():
 
 @pytest.fixture
 async def client(app):
-    async with AsyncClient(app=app, base_url="http://test") as test_client:
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as test_client:
         yield test_client
 
 

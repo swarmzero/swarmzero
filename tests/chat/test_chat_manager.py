@@ -26,7 +26,7 @@ class MockAgent:
 
 
 class MockMultiModalAgent:
-    def create_task(self, content, extra_state=None):
+    def create_task(self, content, chat_history=None, extra_state=None):
         return type("MockTask", (), {"task_id": "12345"})
 
     async def _arun_step(self, task_id):

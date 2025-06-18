@@ -184,7 +184,11 @@ class FileStore:
                 logger.error(f"Failed to retrieve file from S3: {e}")
                 raise IOError(f"Error retrieving file {filename} from S3")
         else:
-            file_location = os.path.join(filename)
+            # When storing files locally, ensure we look in the configured
+            # base directory.  Previously this function used
+            # ``os.path.join(filename)`` which simply returned ``filename``
+            # without the base directory and caused lookups to fail.
+            file_location = os.path.join(self.base_dir, filename)
             if not os.path.exists(file_location):
                 logger.warning(f"File {filename} does not exist locally.")
                 return None

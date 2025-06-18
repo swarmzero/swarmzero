@@ -1,11 +1,12 @@
 import os
 import shutil
+import base64
 from io import BytesIO
 
 import pytest
 from fastapi import UploadFile
 
-from swarmzero.filestore import FileStore
+from swarmzero.filestore.filestore import FileStore
 
 
 @pytest.fixture(scope="module")
@@ -58,3 +59,15 @@ def test_rename_file(file_store):
     assert file_store.rename_file(old_filename, new_filename)
     assert not os.path.exists(old_file_path)
     assert os.path.exists(new_file_path)
+
+
+def test_get_file(file_store):
+    filename = "get_file.txt"
+    content = b"hello"
+    # create file manually
+    file_path = os.path.join(file_store.base_dir, filename)
+    with open(file_path, "wb") as f:
+        f.write(content)
+
+    encoded = file_store.get_file(filename)
+    assert encoded == base64.b64encode(content).decode("utf-8")

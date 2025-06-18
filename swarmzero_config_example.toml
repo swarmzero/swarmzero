@@ -1,3 +1,5 @@
+max_iterations = 10
+
 [model]
 # for Azure Open AI use azure/<azure-deployment-name>
 model = "gpt-4o"

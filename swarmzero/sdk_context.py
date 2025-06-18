@@ -70,7 +70,7 @@ class SDKContext:
 
         :return: A dictionary with default configuration settings.
         """
-        return {
+        defaults = {
             "model": self.config.get("model", "model", "gpt-3.5-turbo"),
             "environment": self.config.get("environment", "type", "dev"),
             "timeout": self.config.get("timeout", "llm", 30),
@@ -79,6 +79,8 @@ class SDKContext:
             "enable_multi_modal": self.config.get("model", "enable_multi_modal", False),
             "sample_prompts": self.config.get("sample_prompts", "prompts", []),
         }
+        defaults["max_iterations"] = self.config.get("max_iterations", default=10)
+        return defaults
 
     def load_agent_configs(self):
         """
@@ -87,7 +89,10 @@ class SDKContext:
         :return: A dictionary of agent configurations.
         """
         agent_configs = {}
-        for section in self.config.config:
+        for section, section_config in self.config.config.items():
+            if not isinstance(section_config, dict):
+                continue
+
             if section not in ["model", "environment", "timeout", "log"]:
                 agent_configs[section] = {
                     "model": self.config.get(section, "model", self.default_config["model"]),

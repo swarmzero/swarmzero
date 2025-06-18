@@ -71,6 +71,11 @@ class SDKContext:
         :return: A dictionary with default configuration settings.
         """
         return {
+            "max_iterations": self.config.get(
+                "model",                     # section
+                "max_iterations",            # key
+                self.config.get("max_iterations", default=10)
+            ),
             "model": self.config.get("model", "model", "gpt-3.5-turbo"),
             "environment": self.config.get("environment", "type", "dev"),
             "timeout": self.config.get("timeout", "llm", 30),
@@ -87,9 +92,13 @@ class SDKContext:
         :return: A dictionary of agent configurations.
         """
         agent_configs = {}
-        for section in self.config.config:
+        for section, section_config in self.config.config.items():
+            if not isinstance(section_config, dict):
+                continue
+
             if section not in ["model", "environment", "timeout", "log"]:
                 agent_configs[section] = {
+                    "max_iterations": self.config.get(section, "max_iterations", self.default_config["max_iterations"]),
                     "model": self.config.get(section, "model", self.default_config["model"]),
                     "environment": self.config.get(section, "environment", self.default_config["environment"]),
                     "timeout": self.config.get(section, "timeout", self.default_config["timeout"]),

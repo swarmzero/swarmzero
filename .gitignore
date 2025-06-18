@@ -24,4 +24,3 @@ build
 *.db
 **/*/swarmzero-data/
 swarmzero-data/
-swarmzero.log

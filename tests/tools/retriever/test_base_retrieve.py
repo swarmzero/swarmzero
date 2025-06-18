@@ -6,6 +6,7 @@ from swarmzero.sdk_context import SDKContext
 from swarmzero.tools.retriever.base_retrieve import RetrieverBase
 from swarmzero.utils import IndexStore
 
+
 @pytest.fixture
 def retriever_base():
     return RetrieverBase()

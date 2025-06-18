@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi import APIRouter, FastAPI
-from httpx import AsyncClient
+from httpx import ASGITransport, AsyncClient
 
 from swarmzero.filestore import FileStore
 from swarmzero.sdk_context import SDKContext
@@ -47,7 +47,8 @@ async def client(app):
         patch.object(RetrieverBase, "insert_documents"),
         patch.object(IndexStore, "save_to_file", MagicMock()),
     ):
-        async with AsyncClient(app=app, base_url="http://test") as test_client:
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as test_client:
             yield test_client
 
 

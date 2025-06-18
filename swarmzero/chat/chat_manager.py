@@ -11,6 +11,7 @@ from llama_index.core.schema import ImageDocument
 
 from swarmzero.database.database import DatabaseManager
 from swarmzero.filestore import BASE_DIR, FileStore
+from swarmzero.memory import create_mem0_memory
 from swarmzero.utils.callback import EventCallbackHandler
 from swarmzero.utils.suggest_questions import NextQuestionSuggestion
 
@@ -28,6 +29,8 @@ class ChatManager:
         enable_suggestions: bool = False,
         agent_id: Optional[str] = None,
         swarm_id: Optional[str] = None,
+        memory_provider: Optional[str] = None,
+        memory_context: Optional[dict] = None,
     ):
         self.allowed_image_extensions = {".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff"}
         self.llm = llm
@@ -38,6 +41,9 @@ class ChatManager:
         self.enable_suggestions = enable_suggestions
         self.agent_id = agent_id
         self.swarm_id = swarm_id
+        self.memory_provider = memory_provider or os.getenv("MEMORY_PROVIDER")
+        self.memory_context = memory_context or {}
+        self.mem0_memory = create_mem0_memory(**self.memory_context) if self.memory_provider == "mem0" else None
         self.next_question_suggestion = NextQuestionSuggestion()
 
     def is_valid_image(self, file_path: str) -> bool:
@@ -68,6 +74,9 @@ class ChatManager:
             table_name="chats",
             data=data,
         )
+
+        if self.mem0_memory is not None:
+            await self.mem0_memory.aput(ChatMessage(role=role, content=content))
 
     async def get_messages(self, db_manager: DatabaseManager):
         filters = {"user_id": [self.user_id], "session_id": [self.session_id]}
@@ -135,6 +144,8 @@ class ChatManager:
             if db_manager is not None:
                 chat_history = await self.get_messages(db_manager)
                 await self.add_message(db_manager, last_message.role.value, last_message.content, [])
+                if self.mem0_memory is not None and chat_history:
+                    await self.mem0_memory.aput_messages(chat_history)
 
             if self.enable_multi_modal:
                 image_documents = (
@@ -194,8 +205,14 @@ class ChatManager:
         event_handler: Optional[EventCallbackHandler],
         stream_mode: bool = False,
     ) -> AsyncGenerator[str, None]:
-        self.llm.memory = ChatMemoryBuffer.from_defaults(chat_history=chat_history)
-        task = self.llm.create_task(str(last_message.content), extra_state={"image_docs": image_documents})
+        if self.mem0_memory is not None:
+            self.llm.memory = self.mem0_memory
+            chat_history = await self.mem0_memory.aget_all()
+        else:
+            self.llm.memory = ChatMemoryBuffer.from_defaults(chat_history=chat_history)
+        task = self.llm.create_task(
+            str(last_message.content), chat_history=chat_history, extra_state={"image_docs": image_documents}
+        )
         async for chunk in self._execute_task(task.task_id, event_handler, stream_mode):
             yield chunk
 
@@ -206,6 +223,11 @@ class ChatManager:
         event_handler: Optional[EventCallbackHandler],
         stream_mode: bool = False,
     ) -> AsyncGenerator[str, None]:
+        if self.mem0_memory is not None:
+            self.llm.memory = self.mem0_memory
+            chat_history = await self.mem0_memory.aget_all()
+        else:
+            self.llm.memory = ChatMemoryBuffer.from_defaults(chat_history=chat_history)
         task = self.llm.create_task(last_message.content, chat_history=chat_history)
         async for chunk in self._execute_task(task.task_id, event_handler, stream_mode):
             yield chunk

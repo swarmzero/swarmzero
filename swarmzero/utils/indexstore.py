@@ -5,6 +5,7 @@ index_base_dir = "swarmzero-data/index/store/"
 
 os.makedirs(index_base_dir, exist_ok=True)
 
+
 class IndexStore:
 
     def __init__(self):

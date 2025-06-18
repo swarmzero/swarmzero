@@ -2,7 +2,17 @@ import json
 from datetime import datetime, timezone
 from typing import List
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    Request,
+    UploadFile,
+    status,
+)
 from fastapi.responses import StreamingResponse
 from langtrace_python_sdk import inject_additional_attributes
 from llama_index.core.llms import ChatMessage, MessageRole
@@ -13,6 +23,7 @@ from swarmzero.chat import ChatManager
 from swarmzero.chat.schemas import ChatData, ChatHistorySchema
 from swarmzero.database.database import DatabaseManager, get_db
 from swarmzero.server.routes.files import insert_files_to_index
+
 
 def setup_swarm_chat_routes(router: APIRouter, swarm, sdk_context):
     async def validate_chat_data(chat_data_parsed: ChatData):
@@ -136,6 +147,6 @@ def setup_swarm_chat_routes(router: APIRouter, swarm, sdk_context):
                     yield f"data: Error: {str(e)}\n\n"
 
         return StreamingResponse(
-            inject_additional_attributes(stream_response_generator, {"user_id": user_id}), 
-            media_type="text/event-stream"
+            inject_additional_attributes(stream_response_generator, {"user_id": user_id}),
+            media_type="text/event-stream",
         )

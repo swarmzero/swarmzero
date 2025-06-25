@@ -1,5 +1,3 @@
-max_iterations = 10
-
 [model]
 max_iterations = 10
 # for Azure Open AI use azure/<azure-deployment-name>

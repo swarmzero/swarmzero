@@ -74,7 +74,7 @@ class SDKContext:
             "max_iterations": self.config.get(
                 "model",                     # section
                 "max_iterations",            # key
-                self.config.get("max_iterations", default=10)
+                10
             ),
             "model": self.config.get("model", "model", "gpt-3.5-turbo"),
             "environment": self.config.get("environment", "type", "dev"),
@@ -92,10 +92,7 @@ class SDKContext:
         :return: A dictionary of agent configurations.
         """
         agent_configs = {}
-        for section, section_config in self.config.config.items():
-            if not isinstance(section_config, dict):
-                continue
-
+        for section in self.config.config:
             if section not in ["model", "environment", "timeout", "log"]:
                 agent_configs[section] = {
                     "max_iterations": self.config.get(section, "max_iterations", self.default_config["max_iterations"]),

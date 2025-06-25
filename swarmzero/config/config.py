@@ -24,10 +24,8 @@ class Config:
         except FileNotFoundError:
             raise FileNotFoundError(f"Config file not found: {self.config_path}")
 
-    def get(self, section, key=None, default=None):
+    def get(self, section, key, default=None):
         """Gets a value from the configuration."""
-        if key is None:
-            return self.config.get(section, default)
         return self.config.get(section, {}).get(key, default)
 
     def set(self, section, key, value):

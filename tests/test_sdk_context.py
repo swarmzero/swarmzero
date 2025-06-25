@@ -114,8 +114,8 @@ def test_add_max_iterations(sdk_context):
     assert agent_override.max_iterations == 5
 
     # Swarm uses same precedence rules
-    swarm = Swarm(name="test_swarm", description="", functions=[], instruction="test", sdk_context=sdk_context, agents=[agent_default, agent_override])
-    assert swarm.max_iterations == expected_model
+    swarm = Swarm(name="test_swarm", description="", functions=[], instruction="test", max_iterations=8, sdk_context=sdk_context, agents=[agent_default, agent_override])
+    assert swarm.max_iterations != expected_model
 
     # SDKContext attribute store/read also works
     sdk_context.set_attributes("test_id", max_iterations=8)

@@ -41,13 +41,12 @@ requests = "^2.32.3"
 boto3 = "^1.37.3"
 types-boto3 = "^1.38.23"
 llama-index-llms-openrouter = "^0.3.1"
-pytest = "^8.4.1"
 
 [tool.poetry.extras]
 web3 = ["web3", "py-solc-x", "eth-account"]
 
 [tool.poetry.dev-dependencies]
-pytest = "^8.3.4"
+pytest = "^8.4.1"
 pytest-asyncio = "^0.24.0"
 pytest-mock = "^3.14.0"
 httpx = "^0.27.0"

@@ -42,13 +42,13 @@ class SDKContext:
     """
 
     def __init__(self, config_path: Optional[str] = None):
-        """Initialize the SDKContext with a TOML configuration file.
+        """Initialize the SDKContext with a TOML or YAML configuration file.
 
         If ``config_path`` is not provided, the default example configuration
         located in the project root will be used regardless of the current
         working directory.
 
-        :param config_path: Path to the TOML configuration file.
+        :param config_path: Path to the TOML or YAML configuration file.
         """
         if config_path is None:
             root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))

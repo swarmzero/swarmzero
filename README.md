@@ -62,7 +62,7 @@ To use a configuration file with your `Agent`, follow these steps:
 
 1. **Create a Configuration File**:
 
-   - Create a TOML or YAML file (e.g., `swarmzero_config.toml` or `swarmzero_config.yaml`) in your project directory. (See [swarmzero_config_example.toml](./swarmzero_config_example.toml) or [swarmzero_config_example.yaml](./swarmzero_config_example.yaml)).
+   - Create a TOML file (e.g., `swarmzero_config.toml`) in your project directory. (See [swarmzero_config_example.toml](./swarmzero_config_example.toml)).
 
 2. **Create an SDK Context**:
 
@@ -73,8 +73,6 @@ To use a configuration file with your `Agent`, follow these steps:
    from swarmzero.sdk_context import SDKContext
 
    sdk_context = SDKContext(config_path="./swarmzero_config.toml")
-   # or use a YAML file
-   # sdk_context = SDKContext(config_path="./swarmzero_config.yaml")
    ```
 
 2. **Specify the Configuration Path**:
@@ -92,8 +90,6 @@ To use a configuration file with your `Agent`, follow these steps:
        instruction="your instructions for this agent's goal",
        # sdk_context=sdk_context
        config_path="./swarmzero_config.toml" 
-       # or use a YAML file
-       # config_path="./swarmzero_config.yaml" 
    )
    ```
 
@@ -215,8 +211,6 @@ import asyncio
 
 # Create SDK Context
 sdk_context = SDKContext(config_path="./swarmzero_config_example.toml")
-# or
-# sdk_context = SDKContext(config_path="./swarmzero_config_example.yaml")
 
 
 def save_report():
@@ -373,7 +367,7 @@ sample_prompts = [
 ]
 ```
 
-See [./swarmzero_config_example.toml](./swarmzero_config_example.toml) or [./swarmzero_config_example.yaml](./swarmzero_config_example.yaml) for example configuration files.
+See [./swarmzero_config_example.toml](./swarmzero_config_example.toml) for an example configuration file.
 
 
 ## Contributing

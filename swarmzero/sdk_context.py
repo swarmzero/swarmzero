@@ -42,13 +42,13 @@ class SDKContext:
     """
 
     def __init__(self, config_path: Optional[str] = None):
-        """Initialize the SDKContext with a TOML or YAML configuration file.
+        """Initialize the SDKContext with a TOML configuration file.
 
         If ``config_path`` is not provided, the default example configuration
         located in the project root will be used regardless of the current
         working directory.
 
-        :param config_path: Path to the TOML or YAML configuration file.
+        :param config_path: Path to the TOML configuration file.
         """
         if config_path is None:
             root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -71,6 +71,11 @@ class SDKContext:
         :return: A dictionary with default configuration settings.
         """
         return {
+            "max_iterations": self.config.get(
+                "model",                     # section
+                "max_iterations",            # key
+                10
+            ),
             "model": self.config.get("model", "model", "gpt-3.5-turbo"),
             "environment": self.config.get("environment", "type", "dev"),
             "timeout": self.config.get("timeout", "llm", 30),
@@ -90,6 +95,7 @@ class SDKContext:
         for section in self.config.config:
             if section not in ["model", "environment", "timeout", "log"]:
                 agent_configs[section] = {
+                    "max_iterations": self.config.get(section, "max_iterations", self.default_config["max_iterations"]),
                     "model": self.config.get(section, "model", self.default_config["model"]),
                     "environment": self.config.get(section, "environment", self.default_config["environment"]),
                     "timeout": self.config.get(section, "timeout", self.default_config["timeout"]),

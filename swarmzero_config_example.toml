@@ -21,8 +21,8 @@ llm = 30
 # example of agent in a swarm
 [target_agent_id]
 max_iterations = 10
-#model = "claude-3-5-sonnet-20240620"
-model = "gpt-3.5-turbo"
+model = "claude-3-5-sonnet-20240620"
+#model = "gpt-3.5-turbo"
 timeout = 15
 environment = "dev"
 enable_multi_modal = true

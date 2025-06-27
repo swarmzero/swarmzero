@@ -101,7 +101,7 @@ def test_get_resource(sdk_context):
 
 def test_yaml_support():
     # Test that the SDKContext can handle YAML configuration files
-    ctx = SDKContext("tests/swarmzero_config_test.yaml")
+    ctx = SDKContext("./swarmzero_config_test.yaml")
     ctx.load_config()
 
     assert ctx.default_config["model"] == "gpt-3.5-turbo"

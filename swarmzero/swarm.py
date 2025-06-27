@@ -1,15 +1,15 @@
-import json
-import os
-import string
-import signal
 import asyncio
-import uvicorn
-import uuid
+import json
 import logging
+import os
+import signal
+import string
+import uuid
 from typing import Any, Callable, Dict, List, Optional
 
+import uvicorn
 from dotenv import load_dotenv
-from fastapi import UploadFile, FastAPI, APIRouter
+from fastapi import APIRouter, FastAPI, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from langtrace_python_sdk import inject_additional_attributes
@@ -23,9 +23,8 @@ from swarmzero.llms.llm import LLM
 from swarmzero.llms.utils import llm_from_config_without_agent, llm_from_wrapper
 from swarmzero.sdk_context import SDKContext
 from swarmzero.server.routes.files import insert_files_to_index
-from swarmzero.utils import tools_from_funcs
 from swarmzero.server.routes.swarm_chat import setup_swarm_chat_routes
-
+from swarmzero.utils import tools_from_funcs
 
 load_dotenv()
 
@@ -47,7 +46,9 @@ class Swarm:
     __port: int
     __app: FastAPI
     __shutdown_event: Optional[asyncio.Event] = None
-    def __init__(self,
+
+    def __init__(
+        self,
         name: str,
         description: str,
         instruction: str,
@@ -60,7 +61,9 @@ class Swarm:
         max_iterations: Optional[int] = 10,
         host: Optional[str] = None,
         port: Optional[int] = None,
-        ):
+        memory_provider: Optional[str] = None,
+        memory_context: Optional[dict] = None,
+    ):
         self.id = swarm_id if swarm_id != "" else str(uuid.uuid4())
         self.name = name
         self.description = description
@@ -68,6 +71,8 @@ class Swarm:
         self.functions = functions
         self.__host = host if host else "0.0.0.0"
         self.__port = port if port else 8000
+        self.memory_provider = memory_provider or os.getenv("MEMORY_PROVIDER")
+        self.memory_context = memory_context or {}
         self.__shutdown_event = asyncio.Event()
         self.__agents = AgentMap()
         self.sdk_context = sdk_context if sdk_context is not None else SDKContext(config_path=config_path)
@@ -98,7 +103,7 @@ class Swarm:
                 }
 
             self.sdk_context.add_resource(self, resource_type="swarm")
-            self._build_swarm()  
+            self._build_swarm()
         else:
             raise ValueError("No agents provided in params or config file")
 
@@ -133,8 +138,6 @@ class Swarm:
             callback_manager=self.sdk_context.get_utility("callback_manager"),
         )
 
-    
-
     def add_agent(self, agent: Agent):
         if agent.name in self.__agents:
             raise ValueError(f"Agent `{agent.name}` already exists in the swarm.")
@@ -166,7 +169,14 @@ class Swarm:
         await self.sdk_context.save_sdk_context_to_db()
         db_manager = self.sdk_context.get_utility("db_manager")
 
-        chat_manager = ChatManager(self.__swarm, user_id=user_id, session_id=session_id, swarm_id=self.id)
+        chat_manager = ChatManager(
+            self.__swarm,
+            user_id=user_id,
+            session_id=session_id,
+            swarm_id=self.id,
+            memory_provider=self.memory_provider,
+            memory_context=self.memory_context,
+        )
         last_message = ChatMessage(role=MessageRole.USER, content=prompt)
         event_handler = self.sdk_context.get_utility("reasoning_callback") if verbose else None
 
@@ -213,7 +223,14 @@ class Swarm:
         await self.sdk_context.save_sdk_context_to_db()
         db_manager = self.sdk_context.get_utility("db_manager")
 
-        chat_manager = ChatManager(self.__swarm, user_id=user_id, session_id=session_id, swarm_id=self.id)
+        chat_manager = ChatManager(
+            self.__swarm,
+            user_id=user_id,
+            session_id=session_id,
+            swarm_id=self.id,
+            memory_provider=self.memory_provider,
+            memory_context=self.memory_context,
+        )
         last_message = ChatMessage(role=MessageRole.USER, content=prompt)
         event_handler = self.sdk_context.get_utility("reasoning_callback") if verbose else None
         stored_files = []
@@ -242,7 +259,14 @@ class Swarm:
         await self._ensure_utilities_loaded()
         db_manager = self.sdk_context.get_utility("db_manager")
 
-        chat_manager = ChatManager(self.__swarm, user_id=user_id, session_id=session_id, swarm_id=self.id)
+        chat_manager = ChatManager(
+            self.__swarm,
+            user_id=user_id,
+            session_id=session_id,
+            swarm_id=self.id,
+            memory_provider=self.memory_provider,
+            memory_context=self.memory_context,
+        )
 
         if session_id:
             chats = await chat_manager.get_messages(db_manager)
@@ -263,11 +287,11 @@ class Swarm:
         if not self.__utilities_loaded:
             await self.sdk_context.load_db_manager()
             self.__utilities_loaded = True
-    
+
     def __setup_server(self):
         self.__configure_cors()
         self.__setup_routes()
-    
+
     def __configure_cors(self):
         self.__app.add_middleware(
             CORSMiddleware,
@@ -276,6 +300,7 @@ class Swarm:
             allow_methods=["*"],
             allow_headers=["*"],
         )
+
     def __setup_routes(self):
         router = APIRouter()
         setup_swarm_chat_routes(router, self, self.sdk_context)
@@ -288,20 +313,18 @@ class Swarm:
     async def run_server(self):
         try:
             self.__setup_signal_handlers()
-            config = uvicorn.Config(app=self.__app,
-                                    host=self.__host,
-                                    port=self.__port,
-                                    loop="asyncio")
+            config = uvicorn.Config(app=self.__app, host=self.__host, port=self.__port, loop="asyncio")
             server = uvicorn.Server(config)
             await server.serve()
         except Exception as e:
             print(f"Error while running the server: {e}")
-    
+
     def __setup_signal_handlers(self):
         signal.signal(signal.SIGINT, self.__signal_handler)
+
     def __signal_handler(self, signum, _):
         asyncio.create_task(self.shutdown_procedures())
-    
+
     async def shutdown_procedures(self):
         tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
         [task.cancel() for task in tasks]

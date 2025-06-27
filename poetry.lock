@@ -6620,8 +6620,4 @@ web3 = []
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<3.13"
-<<<<<<< HEAD
-content-hash = "94e2a6aea9fd2c21a83e4c39afaf66e0838fb7513ea1ef50a0ccb6e45501e9dd"
-=======
-content-hash = "457e9283b37b8aed67412873759d89f08a4a0813e14ab55ece18a5e1339a5b54"
->>>>>>> b5fdfb5... [SV 58] add YAML support for file config
+content-hash = "32b4045eb12a066437ec0c59cc6bc898262a167be4f5922c5b60e972dcecf69d"

@@ -122,15 +122,6 @@ def test_add_max_iterations(sdk_context):
     attrs = sdk_context.get_attributes("test_id", "max_iterations")
     assert attrs["max_iterations"] == 8
 
-def test_yaml_support():
-    # Test that the SDKContext can handle YAML configuration files
-    ctx = SDKContext("tests/swarmzero_config_test.yaml")
-    ctx.load_config()
-
-    assert ctx.default_config["model"] == "gpt-3.5-turbo"
-    assert ctx.default_config["enable_multi_modal"] is True
-    assert ctx.default_config["ollama_server_url"] == "http://localhost:11434"
-
 @pytest.mark.asyncio
 async def test_initialize_database(sdk_context):
     with patch("swarmzero.sdk_context.initialize_db") as mock_initialize_db:

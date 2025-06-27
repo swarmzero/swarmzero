@@ -86,13 +86,7 @@ class Agent:
         self.sdk_context = sdk_context if sdk_context is not None else SDKContext(config_path=config_path)
         self.__config = self.sdk_context.get_config(self.name)
         self.__llm = llm if llm is not None else None
-        
-        # resolve max_iterations: constructor override > per-agent config
-        if max_iterations is not None:
-            self.max_iterations = max_iterations
-        elif isinstance(self.__config.get("max_iterations", None), int):
-            self.max_iterations = self.__config.get("max_iterations", None) 
-
+        self.max_iterations = max_iterations
         self.__optional_dependencies: dict[str, bool] = {}
         self.__swarm_mode = swarm_mode
         self.__chat_only_mode = chat_only_mode

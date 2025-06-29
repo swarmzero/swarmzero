@@ -14,6 +14,7 @@ from llama_index.llms.ollama import Ollama
 from llama_index.llms.openai import OpenAI
 from llama_index.llms.openrouter import OpenRouter
 from llama_index.multi_modal_llms.openai import OpenAIMultiModal
+from llama_index.llms.bedrock import Bedrock
 
 from swarmzero.llms import AzureOpenAILLM
 from swarmzero.llms.claude import ClaudeLLM
@@ -23,6 +24,7 @@ from swarmzero.llms.nebius import NebiuslLLM
 from swarmzero.llms.ollama import OllamaLLM
 from swarmzero.llms.openai import OpenAILLM, OpenAIMultiModalLLM
 from swarmzero.llms.openrouter import OpenRouterLLM
+from swarmzero.llms.bedrock import BedrockLLM
 from swarmzero.sdk_context import SDKContext
 
 
@@ -176,3 +178,11 @@ def test_openrouter_llm_initialization(tools, instruction, sdk_context):
         assert isinstance(openrouter_llm.agent, llama_index.core.agent.runner.base.AgentRunner)
         assert openrouter_llm.tools == tools
         assert instruction in openrouter_llm.system_prompt
+
+def test_bedrock_llm_initialization(tools, instruction, sdk_context):
+    with patch('llama_index.llms.bedrock.Bedrock') as mock_bedrock:
+        bedrock_llm = BedrockLLM(mock_bedrock.return_value, tools, instruction, sdk_context=sdk_context)
+        assert bedrock_llm.agent is not None
+        assert isinstance(bedrock_llm.agent, llama_index.core.agent.runner.base.AgentRunner)
+        assert bedrock_llm.tools == tools
+        assert instruction in bedrock_llm.system_prompt

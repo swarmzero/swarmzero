@@ -29,6 +29,8 @@ from swarmzero.llms.nebius import NebiuslLLM
 from swarmzero.llms.ollama import OllamaLLM
 from swarmzero.llms.openai import OpenAILLM, OpenAIMultiModalLLM
 from swarmzero.llms.openrouter import OpenRouterLLM
+from swarmzero.llms.bedrock import BedrockLLM
+
 from swarmzero.llms.utils import llm_from_config
 from swarmzero.sdk_context import SDKContext
 from swarmzero.server.models import ToolInstallRequest
@@ -495,6 +497,9 @@ class Agent:
                 agent_class = NebiuslLLM
             elif "openrouter" in model:
                 agent_class = OpenRouterLLM
+            elif "bedrock" in model:
+                agent_class = BedrockLLM
+
             else:
                 agent_class = OpenAILLM
 

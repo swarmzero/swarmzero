@@ -23,6 +23,8 @@ Supported LLM Providers:
 - [Gemini](https://ai.google.dev/gemini-api/docs/models/gemini)
 - [Nebius](https://docs.nebius.com/studio/inference/models)
 - [Ollama](https://ollama.com/library)
+- [AWS Bedrock](https://docs.aws.amazon.com/bedrock/latest/userguide/)
+- [OpenRouter](https://openrouter.ai/docs)
 
 ## Project Requirements
 

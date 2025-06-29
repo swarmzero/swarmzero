@@ -1,7 +1,10 @@
 import importlib
 import json
+import os
 from datetime import datetime
 from typing import Any, Optional
+import logging
+import os
 
 from llama_index.core.callbacks import CallbackManager
 
@@ -13,7 +16,15 @@ from swarmzero.database.database import (
     setup_chats_table,
 )
 from swarmzero.utils import EventCallbackHandler, IndexStore
+from datetime import datetime, timezone
+import logging
 
+class TimezoneFormatter(logging.Formatter):
+    def formatTime(self, record, datefmt=None):
+        dt_utc = datetime.fromtimestamp(record.created, tz=timezone.utc)
+        
+        milliseconds = f"{dt_utc.microsecond // 1000:03d}"
+        return dt_utc.strftime('%Y-%m-%dT%H:%M:%S.') + milliseconds + 'Z'
 
 class SDKContext:
 
@@ -30,12 +41,19 @@ class SDKContext:
     This includes configuration settings, resources, and utilities.
     """
 
-    def __init__(self, config_path: Optional[str] = "./swarmzero_config_example.toml"):
-        """
-        Initialize the SDKContext with a path to a TOML configuration file.
+    def __init__(self, config_path: Optional[str] = None):
+        """Initialize the SDKContext with a TOML configuration file.
+
+        If ``config_path`` is not provided, the default example configuration
+        located in the project root will be used regardless of the current
+        working directory.
 
         :param config_path: Path to the TOML configuration file.
         """
+        if config_path is None:
+            root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+            config_path = os.path.join(root_dir, "swarmzero_config_example.toml")
+
         self.config = Config(config_path)
         self.default_config = self.load_default_config()
         self.agent_configs = self.load_agent_configs()
@@ -44,6 +62,8 @@ class SDKContext:
         self.utilities = {}
         self.attributes = {}
 
+        self.configure_logging()
+
     def load_default_config(self):
         """
         Load the default configuration settings.
@@ -51,6 +71,11 @@ class SDKContext:
         :return: A dictionary with default configuration settings.
         """
         return {
+            "max_iterations": self.config.get(
+                "model",                     # section
+                "max_iterations",            # key
+                10
+            ),
             "model": self.config.get("model", "model", "gpt-3.5-turbo"),
             "environment": self.config.get("environment", "type", "dev"),
             "timeout": self.config.get("timeout", "llm", 30),
@@ -70,6 +95,7 @@ class SDKContext:
         for section in self.config.config:
             if section not in ["model", "environment", "timeout", "log"]:
                 agent_configs[section] = {
+                    "max_iterations": self.config.get(section, "max_iterations", self.default_config["max_iterations"]),
                     "model": self.config.get(section, "model", self.default_config["model"]),
                     "environment": self.config.get(section, "environment", self.default_config["environment"]),
                     "timeout": self.config.get(section, "timeout", self.default_config["timeout"]),
@@ -180,6 +206,7 @@ class SDKContext:
         """
         from swarmzero.agent import Agent
         from swarmzero.swarm import Swarm
+        from swarmzero.workflow import Workflow
 
         if isinstance(resource, Agent) and resource_type == "agent":
             resource_info = {
@@ -217,6 +244,17 @@ class SDKContext:
             self.add_resource_info(resource_info)
             for function in resource.functions:
                 self.add_resource(function, resource_type="tool")
+        elif isinstance(resource, Workflow) and resource_type == "workflow":
+            resource_info = {
+                "id": resource.id,
+                "name": resource.name,
+                "type": resource_type,
+                "instruction": resource.instruction,
+                "description": resource.description,
+                "steps": [{"name": step.name, "mode": step.mode.name} for step in resource.steps],
+            }
+            self.resources[resource.id] = {"init_params": resource_info, "object": resource}
+            self.add_resource_info(resource_info)
         elif resource_type == "tool" and callable(resource):
             resource_info = {"name": resource.__name__, "type": resource_type, "doc": resource.__doc__}
             self.resources[resource.__name__] = {"init_params": resource_info, "object": resource}
@@ -358,6 +396,32 @@ class SDKContext:
                 agents=agents,
                 swarm_id=params["id"],
                 sdk_context=self,
+            )
+            self.resources[name]["object"] = resource_obj
+
+        # Third pass: Restore workflows
+        from swarmzero.workflow import StepMode, Workflow, WorkflowStep
+
+        for name, resource in list(self.resources.items()):
+            if not isinstance(resource, dict) or resource.get("object") is not None:
+                continue
+
+            params = resource["init_params"]
+            if params["type"] != "workflow":
+                continue
+
+            steps = [
+                WorkflowStep(runner=None, mode=StepMode[step["mode"]], name=step["name"])
+                for step in params.get("steps", [])
+            ]
+            resource_obj = Workflow(
+                name=params["name"],
+                steps=steps,
+                instruction=params.get("instruction", ""),
+                description=params.get("description", ""),
+                default_llm=None,
+                sdk_context=self,
+                workflow_id=params["id"],
             )
             self.resources[name]["object"] = resource_obj
 
@@ -659,3 +723,88 @@ class SDKContext:
 
         # Insert the data into the table
         await db_manager.insert_data("config", {"name": "default", "data": config_data, "create_date": datetime.now()})
+    
+    def get_log_level(self):
+        """
+        Get the log level from environment variable, then [logging].log_level from config,
+        then [log].level from config, or default to INFO.
+        
+        :return: The log level as a string (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+        """
+        
+        env_log_level = os.environ.get("SWARMZERO_LOG_LEVEL")
+        if env_log_level:
+            return env_log_level.upper()
+        
+        logging_section = self.config.config.get("logging", {})
+        config_log_level = logging_section.get("log_level")
+        
+        if config_log_level:
+            return str(config_log_level).upper()
+
+        return "INFO"
+
+    def get_logging_config(self):
+        """
+        Get the logging configuration for the SDK context.
+
+        :return: A dictionary with logging configuration settings.
+        """
+        log_section = self.config.config.get("logging", {})
+
+        return {
+            "log_file_path": log_section.get("log_file_path", None),
+            "log_level": self.get_log_level() 
+        }
+    
+    def configure_logging(self):
+        """
+        Configure logging based on the settings in the configuration file.
+        """
+        logging.captureWarnings(True)
+        logging_config = self.get_logging_config()
+        
+        log_level_str = logging_config["log_level"]
+        numeric_log_level = getattr(logging, log_level_str.upper(), logging.INFO)
+        
+        root_logger = logging.getLogger()
+        root_logger.setLevel(numeric_log_level) 
+
+        formatter = TimezoneFormatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+
+        console_handler_exists = any(isinstance(h, logging.StreamHandler) for h in root_logger.handlers)
+        
+        if not console_handler_exists:
+            console_handler = logging.StreamHandler()
+            console_handler.setFormatter(formatter)
+            root_logger.addHandler(console_handler)
+        else: 
+            for handler in root_logger.handlers:
+                if isinstance(handler, logging.StreamHandler):
+                    handler.setFormatter(formatter) 
+
+        if logging_config["log_file_path"] and self._is_valid_path(logging_config["log_file_path"]):
+            log_file_path = logging_config["log_file_path"]
+            abs_log_file_path = os.path.abspath(log_file_path)
+            
+            file_handler_instance = None
+            for h in root_logger.handlers:
+                if isinstance(h, logging.FileHandler) and h.baseFilename == abs_log_file_path:
+                    file_handler_instance = h
+                    break
+            
+            if file_handler_instance is None:
+                file_handler = logging.FileHandler(log_file_path)
+                file_handler.setFormatter(formatter)
+                root_logger.addHandler(file_handler)
+                logging.info(f"Logging to file: {log_file_path}")
+            else:
+                file_handler_instance.setFormatter(formatter)
+
+    def _is_valid_path(self, path_param):
+        if os.path.exists(path_param):
+            return True
+        
+        directory = os.path.dirname(path_param) or '.'
+        
+        return os.path.isdir(directory) and os.access(directory, os.W_OK)

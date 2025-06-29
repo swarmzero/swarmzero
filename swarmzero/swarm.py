@@ -73,7 +73,13 @@ class Swarm:
         self.sdk_context = sdk_context if sdk_context is not None else SDKContext(config_path=config_path)
         self.__config = self.sdk_context.get_config(self.name)
         self.__llm = llm if llm is not None else llm_from_config_without_agent(self.__config, self.sdk_context)
-        self.max_iterations = max_iterations
+        
+        # resolve max_iterations: constructor override > per-agent config
+        if max_iterations is not None:
+            self.max_iterations = max_iterations
+        elif isinstance(self.__config.get("max_iterations", None), int):
+            self.max_iterations = self.__config.get("max_iterations", None) 
+        
         self.__utilities_loaded = False
         self.sdk_context.load_default_utility()
 

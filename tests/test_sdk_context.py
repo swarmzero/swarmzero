@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from swarmzero.agent import Agent
+from swarmzero.swarm import Swarm
 from swarmzero.sdk_context import SDKContext
 
 
@@ -98,6 +99,28 @@ def test_get_resource(sdk_context):
 
     assert retrieved_tool == test_tool
 
+def test_add_max_iterations(sdk_context):
+    expected_model = sdk_context.config.get("model", "max_iterations", 10) # 10
+
+    # SDK default comes from [model].max_iterations or top-level 
+    assert sdk_context.default_config["max_iterations"] == expected_model
+
+    # Agent without override uses SDK default
+    agent_default = Agent(name="test_agent", functions=[], instruction="test", sdk_context=sdk_context)
+    assert agent_default.max_iterations == expected_model
+
+    # Agent with override uses provided value
+    agent_override = Agent(name="test_agent", functions=[], instruction="test", sdk_context=sdk_context, max_iterations=5)
+    assert agent_override.max_iterations == 5
+
+    # Swarm uses same precedence rules
+    swarm = Swarm(name="test_swarm", description="", functions=[], instruction="test", max_iterations=8, sdk_context=sdk_context, agents=[agent_default, agent_override])
+    assert swarm.max_iterations != expected_model
+
+    # SDKContext attribute store/read also works
+    sdk_context.set_attributes("test_id", max_iterations=8)
+    attrs = sdk_context.get_attributes("test_id", "max_iterations")
+    assert attrs["max_iterations"] == 8
 
 @pytest.mark.asyncio
 async def test_initialize_database(sdk_context):

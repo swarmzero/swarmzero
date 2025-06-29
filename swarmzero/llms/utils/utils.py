@@ -85,11 +85,14 @@ def _create_llm(llm_type: str, config: Config):
             logger.error("OPENROUTER_API_KEY is missing")
             raise ValueError("OPENROUTER_API_KEY is required for OpenRouter")
         if not model:
-            return OpenRouter(
-                model=model,
-                api_key=api_key,
-                timeout=timeout,
-            )
+            logger.error("OPENROUTER_MODEL is missing")
+            raise ValueError("OPENROUTER_MODEL is required for OpenRouter")
+        return OpenRouter(
+            model=model,
+            api_key=api_key,
+            timeout=timeout,
+        )
+
     elif llm_type == "Nebius":
         api_key = os.getenv("NEBIUS_API_KEY")
         api_base = os.getenv("NEBIUS_API_BASE")

@@ -4,7 +4,6 @@ repos:
     hooks:
       - id: black
         language_version: python3
-        args: ['--exclude', 'swarmzero/experimental/.*']
 
   - repo: https://github.com/pycqa/isort
     rev: 5.13.2

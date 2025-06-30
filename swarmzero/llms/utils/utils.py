@@ -24,6 +24,7 @@ from llama_index.llms.ollama import Ollama
 from llama_index.llms.openai import OpenAI
 from llama_index.llms.openrouter import OpenRouter
 from llama_index.multi_modal_llms.openai import OpenAIMultiModal
+from llama_index.llms.bedrock import Bedrock
 
 from swarmzero.config import Config
 from swarmzero.llms.claude import ClaudeLLM
@@ -33,6 +34,7 @@ from swarmzero.llms.nebius import NebiuslLLM
 from swarmzero.llms.ollama import OllamaLLM
 from swarmzero.llms.openai import AzureOpenAILLM, OpenAILLM, OpenAIMultiModalLLM
 from swarmzero.llms.openrouter import OpenRouterLLM
+from swarmzero.llms.bedrock import BedrockLLM
 
 load_dotenv()
 
@@ -90,6 +92,7 @@ def _create_llm(llm_type: str, config: Config):
             api_key=api_key,
             timeout=timeout,
         )
+
     elif llm_type == "Nebius":
         api_key = os.getenv("NEBIUS_API_KEY")
         api_base = os.getenv("NEBIUS_API_BASE")
@@ -127,6 +130,16 @@ def _create_llm(llm_type: str, config: Config):
             raise ValueError("GEMINI_API_KEY is required for Gemini models")
         else:
             return Gemini(model='models/' + model, api_key=api_key)
+    elif llm_type == "Bedrock":
+        api_key = os.getenv("AWS_BEDROCK_API_KEY")
+        model = os.getenv("AWS_BEDROCK_MODEL")
+        if not api_key:
+            logger.error("AWS_BEDROCK_API_KEY is missing")
+            raise ValueError("AWS_BEDROCK_API_KEY is required for Bedrock")
+        if not model:
+            logger.error("AWS_BEDROCK_MODEL is missing")
+            raise ValueError("AWS_BEDROCK_MODEL is required for Bedrock")
+        return BedrockLLM(model=model, api_key=api_key, timeout=timeout)
     else:
         logger.error("Unsupported LLM type")
         raise ValueError("Unsupported LLM type")
@@ -148,6 +161,8 @@ def llm_from_wrapper(llm_wrapper: LLM, config: Config):
         return _create_llm("Nebius", config)
     elif isinstance(llm_wrapper, OpenRouterLLM):
         return _create_llm("OpenRouter", config)
+    elif isinstance(llm_wrapper, BedrockLLM):
+        return _create_llm("Bedrock", config)
     else:
         logger.error("Unsupported LLM wrapper type")
         raise ValueError("Unsupported LLM wrapper type")
@@ -178,6 +193,9 @@ def llm_from_config(config: Config):
     elif "openrouter" in model:
         logger.info("OpenRouter model selected")
         return _create_llm("OpenRouter", config)
+    elif "bedrock" in model:
+        logger.info("AWS Bedrock model selected")
+        return _create_llm("Bedrock", config)
     else:
         logger.info("Default OpenAI model selected")
         return _create_llm("OpenAI", config)
@@ -211,6 +229,9 @@ def llm_from_config_without_agent(config: Config, sdk_context: SDKContext):
     elif "openrouter" in model:
         logger.info("OpenRouterLLM selected")
         return OpenRouterLLM(llm=llm_from_config(config), sdk_context=sdk_context)
+    elif "bedrock" in model:
+        logger.info("AWSBedrockLLM selected")
+        return BedrockLLM(llm=llm_from_config(config), sdk_context=sdk_context)
     else:
         logger.info("Default OpenAILLM selected")
         return OpenAILLM(llm=llm_from_config(config), sdk_context=sdk_context)

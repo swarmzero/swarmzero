@@ -71,6 +71,8 @@ class Agent:
         load_index_file=False,
         swarm_mode=False,
         chat_only_mode=False,
+        memory_provider: Optional[str] = None,
+        memory_context: Optional[dict] = None,
         sdk_context: Optional[SDKContext] = None,
         max_iterations: Optional[int] = 10,
     ):
@@ -104,6 +106,8 @@ class Agent:
         self.index_name = index_name
         self.load_index_file = load_index_file
         self.swarm_id = swarm_id
+        self.memory_provider = memory_provider or os.getenv("MEMORY_PROVIDER")
+        self.memory_context = memory_context or {}
         logging.basicConfig(stream=sys.stdout, level=self.__config.get("log"))
         logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
 
@@ -236,7 +240,13 @@ class Agent:
         db_manager = self.sdk_context.get_utility("db_manager")
 
         chat_manager = ChatManager(
-            self.__agent, user_id=user_id, session_id=session_id, agent_id=self.id, swarm_id=self.swarm_id
+            self.__agent,
+            user_id=user_id,
+            session_id=session_id,
+            agent_id=self.id,
+            swarm_id=self.swarm_id,
+            memory_provider=self.memory_provider,
+            memory_context=self.memory_context,
         )
         last_message = ChatMessage(role=MessageRole.USER, content=prompt)
         event_handler = self.sdk_context.get_utility("reasoning_callback") if verbose else None
@@ -283,7 +293,13 @@ class Agent:
         db_manager = self.sdk_context.get_utility("db_manager")
 
         chat_manager = ChatManager(
-            self.__agent, user_id=user_id, session_id=session_id, agent_id=self.id, swarm_id=self.swarm_id
+            self.__agent,
+            user_id=user_id,
+            session_id=session_id,
+            agent_id=self.id,
+            swarm_id=self.swarm_id,
+            memory_provider=self.memory_provider,
+            memory_context=self.memory_context,
         )
         last_message = ChatMessage(role=MessageRole.USER, content=prompt)
         event_handler = self.sdk_context.get_utility("reasoning_callback") if verbose else None
@@ -321,7 +337,13 @@ class Agent:
         db_manager = self.sdk_context.get_utility("db_manager")
 
         chat_manager = ChatManager(
-            self.__agent, user_id=user_id, session_id=session_id, agent_id=self.id, swarm_id=self.swarm_id
+            self.__agent,
+            user_id=user_id,
+            session_id=session_id,
+            agent_id=self.id,
+            swarm_id=self.swarm_id,
+            memory_provider=self.memory_provider,
+            memory_context=self.memory_context,
         )
 
         if session_id:

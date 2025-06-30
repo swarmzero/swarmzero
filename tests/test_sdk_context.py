@@ -18,7 +18,7 @@ def sdk_context():
             "timeout": {"llm": 30},
             "log": {"level": "INFO"},
         }
-        context = SDKContext("./swarmzero_config_test.toml")
+        context = SDKContext("tests/swarmzero_config_test.toml")
         return context
 
 

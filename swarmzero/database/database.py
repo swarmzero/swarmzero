@@ -198,12 +198,7 @@ class DatabaseManager:
         # Verify the update worked
         updated_schema = await self.get_table_definition("chats")
         if updated_schema:
-            self.logger.info("[DEBUG] Updated schema: %s", updated_schema)
-            if "timestamp" in updated_schema:
-                timestamp_def = updated_schema["timestamp"]
-                self.logger.info(
-                    "[DEBUG] Updated timestamp definition: %s (type: %s)", timestamp_def, type(timestamp_def)
-                )
+            self.logger.info("Updated schema verification completed")
 
     def _get_column_sqlalchemy_type(self, type_info: any, backend: str, column_name: str = None):
         """
@@ -249,13 +244,11 @@ class DatabaseManager:
         ):
             from sqlalchemy import TIMESTAMP
 
-            self.logger.info("[DEBUG] Mapping TIMESTAMP type for column %s (type_str: %s)", column_name, type_str)
             return TIMESTAMP(timezone=True)
         # Special case: if column name is "timestamp", always use TIMESTAMP regardless of stored type
         elif column_name == "timestamp":
             from sqlalchemy import TIMESTAMP
 
-            self.logger.info("[DEBUG] Forcing TIMESTAMP type for timestamp column (stored type: %s)", type_str)
             return TIMESTAMP(timezone=True)
         elif type_str == "DATETIME":
             if backend == "postgresql":
@@ -296,18 +289,15 @@ class DatabaseManager:
 
         # FORCE CLEAR CACHE FOR TIMESTAMP ISSUE - TEMPORARY FIX
         if "timestamp" in columns:
-            self.logger.info("[DEBUG] Timestamp column detected - FORCING cache clear for %s", table_name)
             # Clear all cached models for this table to ensure fresh generation
             keys_to_remove = [key for key in self._model_cache.keys() if key.startswith(f"{table_name}_")]
             for key in keys_to_remove:
                 del self._model_cache[key]
-                self.logger.info("[DEBUG] Cleared cached model for %s", key)
 
         if cache_key in self._model_cache:
-            self.logger.info("[DEBUG] Using cached model for %s", table_name)
             return self._model_cache[cache_key]
         else:
-            self.logger.info("[DEBUG] Generating new model for %s", table_name)
+            self.logger.info(f"Generating new model for {table_name}")
 
         metadata = MetaData()
         columns_list: List[Column] = []
@@ -323,27 +313,9 @@ class DatabaseManager:
             # Use the centralized type mapping method
             sqlalchemy_type = self._get_column_sqlalchemy_type(column_type, backend, name)
 
-            # DEBUG: Log what type was generated for timestamp
-            if name == "timestamp":
-                self.logger.info(
-                    "[DEBUG] TIMESTAMP TYPE MAPPING: column_type=%s, backend=%s, result=%s",
-                    column_type,
-                    backend,
-                    sqlalchemy_type,
-                )
-                self.logger.info("[DEBUG] TIMESTAMP TYPE CLASS: %s", type(sqlalchemy_type))
-
             # Determine if column should be nullable (all columns except primary keys)
             is_nullable = not is_pk
             columns_list.append(Column(name, sqlalchemy_type, primary_key=is_pk, nullable=is_nullable))
-
-        for col in columns_list:
-            self.logger.info("[DEBUG] Final column mapping: %s -> %s", col.name, col.type)
-            # Additional debug for timestamp columns
-            if col.name == "timestamp":
-                self.logger.info("[DEBUG] Timestamp column type: %s, backend: %s", col.type, backend)
-                self.logger.info("[DEBUG] Timestamp column type class: %s", type(col.type))
-                self.logger.info("[DEBUG] Timestamp column type name: %s", col.type.__class__.__name__)
 
         if "id" not in columns:
             pk_col = None
@@ -439,15 +411,11 @@ class DatabaseManager:
             raise ValueError(f"Error retrieving table definition: {str(e)}")
 
     async def insert_data(self, table_name: str, data: Dict[str, Any]):
-        self.logger.critical("insert_data CALLED for table: %s", table_name)
-        self.logger.info(f"Inserting data into '{table_name}': {data}")
+        self.logger.info(f"Inserting data into '{table_name}'")
         try:
             columns = await self.get_table_definition(table_name)
             if not columns:
                 raise ValueError(f"Table '{table_name}' does not exist.")
-
-            # Debug: Log the schema definition
-            self.logger.info("[DEBUG] Schema definition for %s: %s", table_name, columns)
 
             processed_data = data.copy()
             backend = engine.url.get_backend_name()
@@ -458,19 +426,11 @@ class DatabaseManager:
                 else:
                     type_str = str(col_type_info).upper()
 
-                self.logger.info("[DEBUG] Processing field '%s': value=%s, schema_type=%s", key, value, type_str)
-                if key == "timestamp":
-                    self.logger.info(
-                        "[DEBUG] Timestamp field processing - col_type_info: %s, type_str: %s", col_type_info, type_str
-                    )
-
                 # Handle explicit UUID types
                 if type_str == "UUID":
-                    self.logger.info("[DEBUG] Processing UUID field '%s': value=%s, type=%s", key, value, type(value))
                     if value is None:
                         # Keep None for UUID fields that allow NULL
                         processed_data[key] = None
-                        self.logger.info("[DEBUG] UUID field '%s' is None, keeping as None", key)
                     elif isinstance(value, str):
                         try:
                             if backend == "postgresql":
@@ -487,35 +447,22 @@ class DatabaseManager:
                 elif type_str in ("TIMESTAMP", "TIMESTAMP WITH TIME ZONE") and value is not None:
                     from datetime import datetime
 
-                    self.logger.info(
-                        "[DEBUG] Processing TIMESTAMP field '%s': value=%s, type=%s", key, value, type(value)
-                    )
-
                     if isinstance(value, str):
                         try:
                             # Support both Z and +00:00 timezone formats
                             converted = datetime.fromisoformat(value.replace('Z', '+00:00'))
                             processed_data[key] = converted
-                            self.logger.info(
-                                "[DEBUG] Converted string timestamp '%s' to datetime: %s", value, converted
-                            )
                         except ValueError:
-                            self.logger.error("[DEBUG] Failed to convert timestamp string '%s'", value)
+                            self.logger.error(f"Failed to convert timestamp string '{value}'")
                             raise ValueError(f"Invalid timestamp format for {key}: {value}")
                     elif isinstance(value, datetime):
-                        self.logger.info("[DEBUG] Value is already datetime: %s", value)
                         processed_data[key] = value
                     else:
-                        self.logger.error("[DEBUG] Invalid timestamp type: %s for value: %s", type(value), value)
+                        self.logger.error(f"Invalid timestamp type: {type(value)} for value: {value}")
                         raise ValueError(
                             f"Timestamp value for {key} must be a datetime object or ISO8601 string, got {type(value)}"
                         )
-            if 'timestamp' in processed_data:
-                ts_value = processed_data['timestamp']
-                self.logger.info("[DEBUG] About to insert: timestamp=%s (type=%s)", ts_value, type(ts_value))
 
-            # Log final processed data for debugging
-            self.logger.info("[DEBUG] Final processed data: %s", processed_data)
             import json
 
             for col, col_type in columns.items():
@@ -529,10 +476,7 @@ class DatabaseManager:
 
             # FORCE direct SQL for chats table
             if table_name == "chats":
-                self.logger.info("[DEBUG] Using direct SQL for chats table to avoid timestamp issues (forced)")
                 return await self._insert_chats_direct_sql(processed_data)
-            else:
-                self.logger.info("[DEBUG] NOT using direct SQL - condition not met")
 
             # Use cached model for other tables
             model, metadata = self._generate_model_class(table_name, columns)
@@ -590,9 +534,6 @@ class DatabaseManager:
         RETURNING id
         """
 
-        self.logger.info("[DEBUG] Direct SQL for chats: %s", sql)
-        self.logger.info("[DEBUG] SQL parameters: %s", processed_data)
-
         session = await self.get_session()
         async with session as session:
             result = await session.execute(text(sql), processed_data)
@@ -621,7 +562,6 @@ class DatabaseManager:
             # Special handling for chats table to avoid timestamp issues
             backend = engine.url.get_backend_name()
             if table_name == "chats" and backend == "postgresql":
-                self.logger.info("[DEBUG] Using direct SQL for reading chats table")
                 return await self._read_chats_direct_sql(filters, order_by, limit, offset)
 
             # Use cached model for other tables
@@ -754,9 +694,6 @@ class DatabaseManager:
         if offset is not None:
             sql += f" OFFSET {offset}"
 
-        self.logger.info("[DEBUG] Direct SQL for reading chats: %s", sql)
-        self.logger.info("[DEBUG] SQL parameters: %s", params)
-
         session = await self.get_session()
         async with session as session:
             result = await session.execute(text(sql), params)
@@ -766,7 +703,6 @@ class DatabaseManager:
             columns = result.keys()
             data = [dict(zip(columns, row)) for row in rows]
 
-            self.logger.info(f"Data read from 'chats' successfully: {len(data)} records")
             return data
 
     async def update_data(self, table_name: str, row_id: Any, new_data: Dict[str, Any]):
@@ -813,26 +749,18 @@ class DatabaseManager:
                 elif type_str == "TIMESTAMP" and value is not None:
                     from datetime import datetime
 
-                    self.logger.info(
-                        "[DEBUG] Processing TIMESTAMP field '%s': value=%s, type=%s", key, value, type(value)
-                    )
-
                     if isinstance(value, str):
                         try:
                             # Support both Z and +00:00 timezone formats
                             converted = datetime.fromisoformat(value.replace('Z', '+00:00'))
                             processed_data[key] = converted
-                            self.logger.info(
-                                "[DEBUG] Converted string timestamp '%s' to datetime: %s", value, converted
-                            )
                         except ValueError:
-                            self.logger.error("[DEBUG] Failed to convert timestamp string '%s'", value)
+                            self.logger.error(f"Failed to convert timestamp string '{value}'")
                             raise ValueError(f"Invalid timestamp format for {key}: {value}")
                     elif isinstance(value, datetime):
-                        self.logger.info("[DEBUG] Value is already datetime: %s", value)
                         processed_data[key] = value
                     else:
-                        self.logger.error("[DEBUG] Invalid timestamp type: %s for value: %s", type(value), value)
+                        self.logger.error(f"Invalid timestamp type: {type(value)} for value: {value}")
                         raise ValueError(
                             f"Timestamp value for {key} must be a datetime object or ISO8601 string, got {type(value)}"
                         )

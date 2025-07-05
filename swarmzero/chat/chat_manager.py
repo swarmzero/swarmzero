@@ -49,7 +49,7 @@ class ChatManager:
             "session_id": self.session_id,
             "message": content,
             "role": role,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(timezone.utc),
             "event": event,
         }
 

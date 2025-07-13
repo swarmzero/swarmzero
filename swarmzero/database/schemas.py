@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from pydantic import BaseModel
 
@@ -20,10 +20,10 @@ class DataRead(BaseModel):
 
 class DataUpdate(BaseModel):
     table_name: str
-    id: int
+    id: Union[int, str]  # Support both integer and UUID/string IDs
     data: Dict[str, Any]
 
 
 class DataDelete(BaseModel):
     table_name: str
-    id: int
+    id: Union[int, str]  # Support both integer and UUID/string IDs

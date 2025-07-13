@@ -49,7 +49,7 @@ class ChatManager:
             "session_id": self.session_id,
             "message": content,
             "role": role,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(timezone.utc),
             "event": event,
         }
 
@@ -206,6 +206,7 @@ class ChatManager:
         event_handler: Optional[EventCallbackHandler],
         stream_mode: bool = False,
     ) -> AsyncGenerator[str, None]:
+        self.llm.memory = ChatMemoryBuffer.from_defaults(chat_history=chat_history)
         task = self.llm.create_task(last_message.content, chat_history=chat_history)
         async for chunk in self._execute_task(task.task_id, event_handler, stream_mode):
             yield chunk

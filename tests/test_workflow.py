@@ -1,5 +1,3 @@
-import asyncio
-
 import pytest
 
 from swarmzero.sdk_context import SDKContext
@@ -19,7 +17,7 @@ async def test_sequential_defaults():
         instruction="instr",
         description="desc",
         default_llm="llm",
-        sdk_context=SDKContext("./swarmzero_config_test.toml"),
+        sdk_context=SDKContext("./tests/swarmzero_config_test.toml"),
         default_user_id="u",
         default_session_id="s",
         steps=[WorkflowStep(runner=runner)],

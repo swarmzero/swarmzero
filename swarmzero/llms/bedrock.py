@@ -1,5 +1,4 @@
 from llama_index.core.agent import ReActAgentWorker
-from llama_index.llms.bedrock import Bedrock
 
 from swarmzero.llms.llm import LLM
 from swarmzero.sdk_context import SDKContext
@@ -14,4 +13,4 @@ class BedrockLLM(LLM):
             llm=llm,
             tool_retriever=self.tool_retriever,
             callback_manager=sdk_context.get_utility("callback_manager"),
-        ).as_agent() 
+        ).as_agent()

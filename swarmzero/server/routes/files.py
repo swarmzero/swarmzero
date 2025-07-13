@@ -4,7 +4,6 @@ from typing import List, Optional
 
 from dotenv import load_dotenv
 from fastapi import APIRouter, File, HTTPException, UploadFile
-from sqlalchemy.orm.collections import collection
 
 from swarmzero.filestore import BASE_DIR, FileStore
 from swarmzero.sdk_context import SDKContext
@@ -13,8 +12,6 @@ from swarmzero.tools.retriever.pinecone_retrieve import PineconeRetriever
 
 load_dotenv()
 
-# TODO: get log level from config
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 

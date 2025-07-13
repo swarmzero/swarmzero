@@ -17,6 +17,7 @@ elif "LANGTRACE_API_KEY" in os.environ:
 
 from llama_index.llms.anthropic import Anthropic
 from llama_index.llms.azure_openai import AzureOpenAI
+from llama_index.llms.bedrock import Bedrock
 from llama_index.llms.gemini import Gemini
 from llama_index.llms.mistralai import MistralAI
 from llama_index.llms.nebius import NebiusLLM as Nebius
@@ -24,9 +25,9 @@ from llama_index.llms.ollama import Ollama
 from llama_index.llms.openai import OpenAI
 from llama_index.llms.openrouter import OpenRouter
 from llama_index.multi_modal_llms.openai import OpenAIMultiModal
-from llama_index.llms.bedrock import Bedrock
 
 from swarmzero.config import Config
+from swarmzero.llms.bedrock import BedrockLLM
 from swarmzero.llms.claude import ClaudeLLM
 from swarmzero.llms.llm import LLM
 from swarmzero.llms.mistral import MistralLLM
@@ -34,11 +35,9 @@ from swarmzero.llms.nebius import NebiuslLLM
 from swarmzero.llms.ollama import OllamaLLM
 from swarmzero.llms.openai import AzureOpenAILLM, OpenAILLM, OpenAIMultiModalLLM
 from swarmzero.llms.openrouter import OpenRouterLLM
-from swarmzero.llms.bedrock import BedrockLLM
 
 load_dotenv()
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
@@ -131,15 +130,25 @@ def _create_llm(llm_type: str, config: Config):
         else:
             return Gemini(model='models/' + model, api_key=api_key)
     elif llm_type == "Bedrock":
-        api_key = os.getenv("AWS_BEDROCK_API_KEY")
         model = os.getenv("AWS_BEDROCK_MODEL")
-        if not api_key:
-            logger.error("AWS_BEDROCK_API_KEY is missing")
-            raise ValueError("AWS_BEDROCK_API_KEY is required for Bedrock")
         if not model:
             logger.error("AWS_BEDROCK_MODEL is missing")
             raise ValueError("AWS_BEDROCK_MODEL is required for Bedrock")
-        return BedrockLLM(model=model, api_key=api_key, timeout=timeout)
+
+        # optional
+        aws_access_key_id = os.getenv("AWS_BEDROCK_ACCESS_KEY_ID")
+        aws_secret_access_key = os.getenv("AWS_BEDROCK_SECRET_ACCESS_KEY")
+        aws_session_token = os.getenv("AWS_BEDROCK_SESSION_TOKEN")
+        region_name = os.getenv("AWS_BEDROCK_REGION_NAME")
+
+        return Bedrock(
+            model=model,
+            aws_access_key_id=aws_access_key_id,
+            aws_secret_access_key=aws_secret_access_key,
+            aws_session_token=aws_session_token,
+            region_name=region_name,
+            timeout=timeout,
+        )
     else:
         logger.error("Unsupported LLM type")
         raise ValueError("Unsupported LLM type")

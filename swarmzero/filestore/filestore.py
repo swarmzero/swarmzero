@@ -19,7 +19,6 @@ S3_PREFIX = "agent_uploads/"
 S3_PRESIGNED_URL_EXPIRATION = 300
 
 # TODO: get log level from config
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 

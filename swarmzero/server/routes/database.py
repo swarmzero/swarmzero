@@ -13,8 +13,6 @@ from swarmzero.database.schemas import (
     TableCreate,
 )
 
-# TODO: get log level from config
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 

@@ -26,7 +26,6 @@ from sqlalchemy.pool import NullPool
 from sqlalchemy.types import Boolean, Float
 
 load_dotenv()
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 os.makedirs("swarmzero-data/db", exist_ok=True)

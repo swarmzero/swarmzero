@@ -5,7 +5,6 @@ import logging
 import os
 import signal
 import subprocess
-import sys
 import uuid
 from typing import Callable, List, Optional
 
@@ -22,6 +21,7 @@ from llama_index.core.tools import QueryEngineTool, ToolMetadata
 
 from swarmzero.chat import ChatManager
 from swarmzero.llms import AzureOpenAILLM
+from swarmzero.llms.bedrock import BedrockLLM
 from swarmzero.llms.claude import ClaudeLLM
 from swarmzero.llms.llm import LLM
 from swarmzero.llms.mistral import MistralLLM
@@ -29,8 +29,6 @@ from swarmzero.llms.nebius import NebiuslLLM
 from swarmzero.llms.ollama import OllamaLLM
 from swarmzero.llms.openai import OpenAILLM, OpenAIMultiModalLLM
 from swarmzero.llms.openrouter import OpenRouterLLM
-from swarmzero.llms.bedrock import BedrockLLM
-
 from swarmzero.llms.utils import llm_from_config
 from swarmzero.sdk_context import SDKContext
 from swarmzero.server.models import ToolInstallRequest
@@ -88,12 +86,12 @@ class Agent:
         self.sdk_context = sdk_context if sdk_context is not None else SDKContext(config_path=config_path)
         self.__config = self.sdk_context.get_config(self.name)
         self.__llm = llm if llm is not None else None
-        
+
         # resolve max_iterations: constructor override > per-agent config
         if max_iterations is not None:
             self.max_iterations = max_iterations
         elif isinstance(self.__config.get("max_iterations", None), int):
-            self.max_iterations = self.__config.get("max_iterations", None) 
+            self.max_iterations = self.__config.get("max_iterations", None)
 
         self.__optional_dependencies: dict[str, bool] = {}
         self.__swarm_mode = swarm_mode
@@ -104,10 +102,9 @@ class Agent:
         self.index_name = index_name
         self.load_index_file = load_index_file
         self.swarm_id = swarm_id
-        logging.basicConfig(stream=sys.stdout, level=self.__config.get("log"))
-        logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
 
-        self.logger = logging.getLogger()
+        # Get logger for this agent instance (SDKContext already configured logging)
+        self.logger = logging.getLogger(f"{__name__}.{self.name}")
         self.logger.setLevel(self.__config.get("log"))
         self.sdk_context.load_default_utility()
         self._check_optional_dependencies()

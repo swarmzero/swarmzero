@@ -2431,6 +2431,23 @@ llama-index-core = ">=0.12.0,<0.13.0"
 llama-index-llms-openai = ">=0.3.0,<0.4.0"
 
 [[package]]
+name = "llama-index-llms-bedrock"
+version = "0.3.8"
+description = "llama-index llms bedrock integration"
+optional = false
+python-versions = "<4.0,>=3.9"
+groups = ["main"]
+files = [
+    {file = "llama_index_llms_bedrock-0.3.8-py3-none-any.whl", hash = "sha256:58b804a206146bd7228590a4ee92ce13806a21040d92cb61e3046f2ee64f66cd"},
+    {file = "llama_index_llms_bedrock-0.3.8.tar.gz", hash = "sha256:8ca2914842a1d09079c35429b15dc50659d697ae84a15a89076a12f90505800e"},
+]
+
+[package.dependencies]
+boto3 = ">=1.34.26,<2.0.0"
+llama-index-core = ">=0.12.0,<0.13.0"
+llama-index-llms-anthropic = ">=0.6.3,<0.7.0"
+
+[[package]]
 name = "llama-index-llms-gemini"
 version = "0.4.14"
 description = "llama-index llms gemini integration"
@@ -6620,4 +6637,4 @@ web3 = []
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<3.13"
-content-hash = "32b4045eb12a066437ec0c59cc6bc898262a167be4f5922c5b60e972dcecf69d"
+content-hash = "9428f46d1214ddc3579cd8cb5ce05c056ab2b041351a9c6bb7de97d8a7f0fdb1"

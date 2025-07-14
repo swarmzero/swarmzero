@@ -17,6 +17,7 @@ elif "LANGTRACE_API_KEY" in os.environ:
 
 from llama_index.llms.anthropic import Anthropic
 from llama_index.llms.azure_openai import AzureOpenAI
+from llama_index.llms.bedrock import Bedrock
 from llama_index.llms.gemini import Gemini
 from llama_index.llms.mistralai import MistralAI
 from llama_index.llms.nebius import NebiusLLM as Nebius
@@ -26,6 +27,7 @@ from llama_index.llms.openrouter import OpenRouter
 from llama_index.multi_modal_llms.openai import OpenAIMultiModal
 
 from swarmzero.config import Config
+from swarmzero.llms.bedrock import BedrockLLM
 from swarmzero.llms.claude import ClaudeLLM
 from swarmzero.llms.llm import LLM
 from swarmzero.llms.mistral import MistralLLM
@@ -36,7 +38,6 @@ from swarmzero.llms.openrouter import OpenRouterLLM
 
 load_dotenv()
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
@@ -90,6 +91,7 @@ def _create_llm(llm_type: str, config: Config):
             api_key=api_key,
             timeout=timeout,
         )
+
     elif llm_type == "Nebius":
         api_key = os.getenv("NEBIUS_API_KEY")
         api_base = os.getenv("NEBIUS_API_BASE")
@@ -127,6 +129,26 @@ def _create_llm(llm_type: str, config: Config):
             raise ValueError("GEMINI_API_KEY is required for Gemini models")
         else:
             return Gemini(model='models/' + model, api_key=api_key)
+    elif llm_type == "Bedrock":
+        model = os.getenv("AWS_BEDROCK_MODEL")
+        if not model:
+            logger.error("AWS_BEDROCK_MODEL is missing")
+            raise ValueError("AWS_BEDROCK_MODEL is required for Bedrock")
+
+        # optional
+        aws_access_key_id = os.getenv("AWS_BEDROCK_ACCESS_KEY_ID")
+        aws_secret_access_key = os.getenv("AWS_BEDROCK_SECRET_ACCESS_KEY")
+        aws_session_token = os.getenv("AWS_BEDROCK_SESSION_TOKEN")
+        region_name = os.getenv("AWS_BEDROCK_REGION_NAME")
+
+        return Bedrock(
+            model=model,
+            aws_access_key_id=aws_access_key_id,
+            aws_secret_access_key=aws_secret_access_key,
+            aws_session_token=aws_session_token,
+            region_name=region_name,
+            timeout=timeout,
+        )
     else:
         logger.error("Unsupported LLM type")
         raise ValueError("Unsupported LLM type")
@@ -148,6 +170,8 @@ def llm_from_wrapper(llm_wrapper: LLM, config: Config):
         return _create_llm("Nebius", config)
     elif isinstance(llm_wrapper, OpenRouterLLM):
         return _create_llm("OpenRouter", config)
+    elif isinstance(llm_wrapper, BedrockLLM):
+        return _create_llm("Bedrock", config)
     else:
         logger.error("Unsupported LLM wrapper type")
         raise ValueError("Unsupported LLM wrapper type")
@@ -178,6 +202,9 @@ def llm_from_config(config: Config):
     elif "openrouter" in model:
         logger.info("OpenRouter model selected")
         return _create_llm("OpenRouter", config)
+    elif "bedrock" in model:
+        logger.info("AWS Bedrock model selected")
+        return _create_llm("Bedrock", config)
     else:
         logger.info("Default OpenAI model selected")
         return _create_llm("OpenAI", config)
@@ -211,6 +238,9 @@ def llm_from_config_without_agent(config: Config, sdk_context: SDKContext):
     elif "openrouter" in model:
         logger.info("OpenRouterLLM selected")
         return OpenRouterLLM(llm=llm_from_config(config), sdk_context=sdk_context)
+    elif "bedrock" in model:
+        logger.info("AWSBedrockLLM selected")
+        return BedrockLLM(llm=llm_from_config(config), sdk_context=sdk_context)
     else:
         logger.info("Default OpenAILLM selected")
         return OpenAILLM(llm=llm_from_config(config), sdk_context=sdk_context)

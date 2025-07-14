@@ -42,6 +42,7 @@ boto3 = "^1.37.3"
 types-boto3 = "^1.38.23"
 llama-index-llms-openrouter = "^0.3.1"
 pyyaml = "^6.0.2"
+llama-index-llms-bedrock = "^0.3.8"
 
 [tool.poetry.extras]
 web3 = ["web3", "py-solc-x", "eth-account"]

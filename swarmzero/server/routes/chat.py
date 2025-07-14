@@ -27,7 +27,6 @@ from swarmzero.llms.openai import OpenAIMultiModalLLM
 from swarmzero.sdk_context import SDKContext
 from swarmzero.server.routes.files import insert_files_to_index
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 

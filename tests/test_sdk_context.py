@@ -99,6 +99,14 @@ def test_get_resource(sdk_context):
 
     assert retrieved_tool == test_tool
 
+def test_yaml_support():
+    # Test that the SDKContext can handle YAML configuration files
+    ctx = SDKContext("./tests/swarmzero_config_test.yaml")
+    ctx.load_config()
+
+    assert ctx.default_config["model"] == "gpt-3.5-turbo"
+    assert ctx.default_config["enable_multi_modal"] is True
+    assert ctx.default_config["ollama_server_url"] == "http://localhost:11434"
 
 def test_add_max_iterations(sdk_context):
     expected_model = sdk_context.config.get("model", "max_iterations", 10)  # 10

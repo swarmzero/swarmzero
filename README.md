@@ -256,15 +256,25 @@ can run sequentially, in parallel, conditionally, or in a loop.
 
 ````python
 from swarmzero import Workflow, WorkflowStep, StepMode
+from swarmzero.sdk_context import SDKContext
+import asyncio
+
+# Create SDK Context
+sdk_context = SDKContext(config_path="./swarmzero_config.toml")
 
 # agent1, agent2, agent3, and agent4 are pre-defined Agent instances
 
 workflow = Workflow(
     name="Research Workflow",
+    description="Research and Analysis Pipeline",
     instruction="Demo workflow",
+    sdk_context=sdk_context,
     steps=[
+        # Sequential step - runs agent1
         WorkflowStep(runner=agent1.chat),
+        # Parallel step - runs agent2 and agent3
         WorkflowStep(runner=[agent2.chat, agent3.chat], mode=StepMode.PARALLEL),
+        # Loop step - repeats until condition is met
         WorkflowStep(
             runner=agent4.chat,
             mode=StepMode.LOOP,
@@ -284,7 +294,7 @@ if __name__ == "__main__":
 #### Nested Workflows
 
 Workflow steps can themselves be workflows. This allows complex pipelines to be
-composed from smaller ones.
+composed from smaller, reusable ones.
 
 ````python
 inner = Workflow(

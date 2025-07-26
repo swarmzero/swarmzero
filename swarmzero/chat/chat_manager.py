@@ -41,7 +41,7 @@ class ChatManager:
         self.enable_suggestions = enable_suggestions
         self.agent_id = agent_id
         self.swarm_id = swarm_id
-        self.memory_provider = memory_provider or os.getenv("MEMORY_PROVIDER")
+        self.memory_provider = memory_provider or os.getenv("MEMORY_PROVIDER") or "mem0"
         self.memory_context = memory_context or {}
         self.mem0_memory = create_mem0_memory(**self.memory_context) if self.memory_provider == "mem0" else None
         self.next_question_suggestion = NextQuestionSuggestion()

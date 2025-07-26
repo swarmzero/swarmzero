@@ -97,7 +97,7 @@ class Agent:
         self.index_name = index_name
         self.load_index_file = load_index_file
         self.swarm_id = swarm_id
-        self.memory_provider = memory_provider or os.getenv("MEMORY_PROVIDER")
+        self.memory_provider = memory_provider or os.getenv("MEMORY_PROVIDER") or "mem0"
         self.memory_context = memory_context or {}
         logging.basicConfig(stream=sys.stdout, level=self.__config.get("log"))
         logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))

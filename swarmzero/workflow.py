@@ -6,8 +6,11 @@ from dataclasses import dataclass
 from enum import Enum, auto
 from typing import Any, Callable, Iterable, List, Optional
 
+import inspect
 from swarmzero.llms.llm import LLM
 from swarmzero.sdk_context import SDKContext
+from swarmzero.agent import Agent
+from swarmzero.swarm import Swarm
 
 
 class StepMode(Enum):
@@ -63,24 +66,41 @@ class Workflow:
         llm: Optional[LLM],
         sdk_context: SDKContext,
     ) -> Any:
-        if hasattr(runner, "chat"):
+        # Agent
+        if isinstance(runner, Agent):
             result = runner.chat(
                 prompt,
                 user_id=user_id,
                 session_id=session_id,
-                llm=llm,
-                sdk_context=sdk_context,
             )
-        elif isinstance(runner, Workflow) or hasattr(runner, "run"):
-            result = runner.run(prompt)
-        else:
-            result = runner(
+        # Swarm
+        elif isinstance(runner, Swarm):
+            result = runner.chat(
                 prompt,
                 user_id=user_id,
                 session_id=session_id,
-                llm=llm,
-                sdk_context=sdk_context,
             )
+        # Workflow
+        elif isinstance(runner, Workflow):
+            result = runner.run(prompt)
+        # Callable function
+        elif callable(runner):
+            sig = inspect.signature(runner)
+            kwargs = {}
+            for name, param in sig.parameters.items():
+                if name == 'prompt':
+                    kwargs['prompt'] = prompt
+                elif name == 'user_id':
+                    kwargs['user_id'] = user_id
+                elif name == 'session_id':
+                    kwargs['session_id'] = session_id
+                elif name == 'llm':
+                    kwargs['llm'] = llm
+                elif name == 'sdk_context':
+                    kwargs['sdk_context'] = sdk_context
+            result = runner(**kwargs)
+        else:
+            raise ValueError(f"Unsupported runner type: {type(runner)}")
         if asyncio.iscoroutine(result):
             return await result
         return result
@@ -97,7 +117,14 @@ class Workflow:
                 result = await self._execute_runner(step.runner, result, user_id, session_id, llm, sdk_context)
 
             elif step.mode == StepMode.PARALLEL:
-                runners: Iterable[Any] = step.runner if isinstance(step.runner, Iterable) else [step.runner]
+                # Handle both single runner and list of runners for parallel execution
+                if isinstance(step.runner, list):
+                    runners = step.runner
+                elif hasattr(step.runner, '__iter__') and not isinstance(step.runner, (str, bytes)):
+                    runners = list(step.runner)
+                else:
+                    runners = [step.runner]
+                
                 results = await asyncio.gather(
                     *[self._execute_runner(r, result, user_id, session_id, llm, sdk_context) for r in runners]
                 )

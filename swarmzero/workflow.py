@@ -117,7 +117,14 @@ class Workflow:
                 result = await self._execute_runner(step.runner, result, user_id, session_id, llm, sdk_context)
 
             elif step.mode == StepMode.PARALLEL:
-                runners: Iterable[Any] = step.runner if isinstance(step.runner, Iterable) else [step.runner]
+                # Handle both single runner and list of runners for parallel execution
+                if isinstance(step.runner, list):
+                    runners = step.runner
+                elif hasattr(step.runner, '__iter__') and not isinstance(step.runner, (str, bytes)):
+                    runners = list(step.runner)
+                else:
+                    runners = [step.runner]
+                
                 results = await asyncio.gather(
                     *[self._execute_runner(r, result, user_id, session_id, llm, sdk_context) for r in runners]
                 )

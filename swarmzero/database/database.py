@@ -25,6 +25,14 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.pool import NullPool
 from sqlalchemy.types import Boolean, Float
 
+# Import UUID type based on database backend
+try:
+    from sqlalchemy.dialects.postgresql import UUID as PostgresUUID
+
+    UUID_TYPE = PostgresUUID(as_uuid=True)
+except ImportError:
+    UUID_TYPE = String  # Fallback for SQLite
+
 load_dotenv()
 logger = logging.getLogger(__name__)
 
@@ -57,9 +65,7 @@ Base = declarative_base()
 
 class TableDefinition(Base):  # type: ignore
     __tablename__ = "table_definitions"
-    id = Column(
-        String, primary_key=True, index=True, default=lambda: str(__import__('uuid').uuid4())
-    )  # UUID stored as string for compatibility
+    id = Column(UUID_TYPE, primary_key=True, index=True, default=uuid.uuid4)  # UUID type for PostgreSQL compatibility
     table_name = Column(String, unique=True, index=True)
     columns = Column(JSON)
 
@@ -141,7 +147,7 @@ class DatabaseManager:
         "DateTime": DateTime,
         "Boolean": Boolean,
         "Text": Text,
-        "UUID": None,  # Will be dynamically imported based on backend
+        "UUID": UUID_TYPE,  # Use the imported UUID type
     }
 
     # Add a cache for generated model classes
@@ -314,7 +320,22 @@ class DatabaseManager:
 
             # Determine if column should be nullable (all columns except primary keys)
             is_nullable = not is_pk
-            columns_list.append(Column(name, sqlalchemy_type, primary_key=is_pk, nullable=is_nullable))
+
+            # Set default value for primary key columns
+            default_value = None
+            if is_pk:
+                if backend == "postgresql" and str(sqlalchemy_type).find("UUID") != -1:
+                    default_value = uuid.uuid4
+                elif backend == "sqlite" and str(sqlalchemy_type).find("String") != -1:
+
+                    def generate_uuid_string():
+                        return str(uuid.uuid4())
+
+                    default_value = generate_uuid_string
+
+            columns_list.append(
+                Column(name, sqlalchemy_type, primary_key=is_pk, nullable=is_nullable, default=default_value)
+            )
 
         if "id" not in columns:
             pk_col = None

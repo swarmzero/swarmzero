@@ -204,6 +204,43 @@ if __name__ == "__main__":
     """
 ````
 
+### Parallel web search and fetch
+
+From a repository checkout, install with the optional `parallel` extra using
+the locked dependencies (see the Poetry setup below):
+
+```sh
+poetry install --extras parallel
+```
+
+Pass the async tools through the same `functions` argument as other tools:
+
+```python
+from swarmzero import Agent
+from swarmzero.tools.parallel import parallel_web_search, parallel_web_fetch
+
+agent = Agent(
+    name="Web Research",
+    functions=[parallel_web_search, parallel_web_fetch],
+    instruction="Search the web and cite source URLs when answering research questions.",
+)
+agent.run()
+```
+
+Use the chat endpoint described above to ask a research question. The tools use
+[Parallel Search MCP](https://docs.parallel.ai/integrations/mcp/search-mcp) over
+Streamable HTTP at `https://search.parallel.ai/mcp`, without reading credentials
+or requiring a Parallel API key. Anonymous use is free for exploration and light
+use, with rate limits; your configured model still needs its usual setup and may
+incur inference costs. Existing agents and model defaults are unchanged.
+
+The optional `session_id` tool argument accepts a stable conversation identifier;
+reuse it across search and fetch calls within a conversation. Each whole MCP call
+has a 60-second timeout, and cancellation propagates to the client. Tool errors are reported to the
+caller. You can also execute the loaded tools directly with `await
+agent.get_tools()[0].acall(objective="Find SwarmZero SDK documentation",
+search_queries=["SwarmZero SDK documentation"])`.
+
 ### Creating a Swarm
 
 You can create a swarm of agents to collaborate on complex tasks. Here's an example of how to set up and use a swarm:

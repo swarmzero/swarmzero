@@ -42,9 +42,11 @@ boto3 = "^1.37.3"
 types-boto3 = "^1.38.23"
 llama-index-llms-openrouter = "^0.3.1"
 pyyaml = "^6.0.2"
+mcp = {version = ">=1.10.1,<2", optional = true}
 llama-index-llms-bedrock = "^0.3.8"
 
 [tool.poetry.extras]
+parallel = ["mcp"]
 web3 = ["web3", "py-solc-x", "eth-account"]
 
 [tool.poetry.dev-dependencies]

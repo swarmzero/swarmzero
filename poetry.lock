@@ -7137,9 +7137,10 @@ cffi = {version = ">=1.11", markers = "platform_python_implementation == \"PyPy\
 cffi = ["cffi (>=1.11)"]
 
 [extras]
+parallel = ["mcp"]
 web3 = []
 
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.11,<3.13"
-content-hash = "9428f46d1214ddc3579cd8cb5ce05c056ab2b041351a9c6bb7de97d8a7f0fdb1"
+content-hash = "6128491cebac0a0a82f4b805abc81163b20d653f6ba39ed1466d54f69dddfdad"
